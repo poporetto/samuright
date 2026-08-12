@@ -21,7 +21,7 @@ button { font: inherit; }
 .swipe-hint { margin-top: 28px; font-size: 13px; }
 .swipe-hint span { color: #b38331; display: block; font-size: 28px; }
 .hero-mascot, .result-mascot { position: absolute; right: -6%; bottom: -1%; z-index: 2; width: 48%; height: 35%; opacity: .95; pointer-events: none; overflow: hidden; }
-.hero-mascot div, .result-mascot div { width: 100%; height: 100%; background: url('/assets/mascot/ronin-voxel-slash-strip.png') 0 center / 800% auto no-repeat; image-rendering: pixelated; }
+.hero-mascot div, .result-mascot div { width: 100%; height: 100%; background-position: 0 center; background-size: 800% auto; background-repeat: no-repeat; image-rendering: pixelated; }
 
 .game-screen { touch-action: none; user-select: none; }
 .game-canvas { position: absolute; inset: 0; }
@@ -42,7 +42,7 @@ button { font: inherit; }
 .mascot--track { transform: rotate(-4deg) translateX(-5px); }
 .mascot--slash { animation: mascotSlash .42s ease-out; }
 .mascot--mirror .mascot__sprite { transform: scaleX(-1); }
-.mascot__sprite { width: 100%; height: 100%; background-image: url('/assets/mascot/ronin-voxel-slash-strip-cropped.png'); background-repeat: no-repeat; background-size: 800% 100%; image-rendering: pixelated; transform-origin: center; }
+.mascot__sprite { width: 100%; height: 100%; background-repeat: no-repeat; background-size: 800% 100%; image-rendering: pixelated; transform-origin: center; }
 @keyframes mascotSlash { 35% { transform: translate(-12px,-8px) rotate(-9deg) scale(1.08); } 100% { transform: none; } }
 
 .results-screen { overflow-y: auto; padding: 1px 24px max(24px, env(safe-area-inset-bottom)); text-align: center; }

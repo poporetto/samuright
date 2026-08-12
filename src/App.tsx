@@ -7,6 +7,8 @@ import type { Feedback, HudState, RoundSummary } from './game/types'
 
 type Screen = 'start' | 'game' | 'results'
 const initialHud: HudState = { score: 0, lives: STARTING_LIVES, combo: 0, secondsLeft: ROUND_SECONDS, current: { japanese: '食べる', reading: 'たべる', meaning: 'to eat' } }
+const mascotStrip = `${import.meta.env.BASE_URL}assets/mascot/ronin-voxel-slash-strip.png`
+const mascotAnimation = `${import.meta.env.BASE_URL}assets/mascot/ronin-voxel-slash-strip-cropped.png`
 
 function formatTime(seconds: number) {
   return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
@@ -15,7 +17,7 @@ function formatTime(seconds: number) {
 function Mascot({ state, direction = 0 }: { state: 'idle' | 'track' | 'slash'; direction?: number }) {
   const frame = state === 'slash' ? 5 : state === 'track' ? (Math.abs(direction) > 4 ? 2 : 1) : 0
   return <div className={`mascot mascot--${state} ${direction > 0 ? 'mascot--mirror' : ''}`} aria-hidden="true">
-    <div className="mascot__sprite" style={{ backgroundPosition: `${(frame / 7) * 100}% center` }} />
+    <div className="mascot__sprite" style={{ backgroundImage: `url(${mascotAnimation})`, backgroundPosition: `${(frame / 7) * 100}% center` }} />
   </div>
 }
 
@@ -31,7 +33,7 @@ function StartScreen({ sound, setSound, onPlay }: { sound: boolean; setSound: (v
       <button className="primary-button" onClick={onPlay}>PLAY</button>
       <p className="swipe-hint"><span>↔</span> Swipe with your finger</p>
     </section>
-    <div className="hero-mascot" aria-hidden="true"><div /></div>
+    <div className="hero-mascot" aria-hidden="true"><div style={{ backgroundImage: `url(${mascotStrip})` }} /></div>
   </main>
 }
 
@@ -91,7 +93,7 @@ function ResultsScreen({ result, onPlay }: { result: RoundSummary; onPlay: () =>
       <p>Every word sharpens our path.</p>
     </section>
     <button className="primary-button" onClick={onPlay}>PLAY AGAIN</button>
-    <div className="result-mascot" aria-hidden="true"><div /></div>
+    <div className="result-mascot" aria-hidden="true"><div style={{ backgroundImage: `url(${mascotStrip})` }} /></div>
   </main>
 }
 
