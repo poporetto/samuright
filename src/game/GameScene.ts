@@ -3,6 +3,7 @@ import { VOCABULARY } from '../data/vocabulary'
 import { gameEvents } from './events'
 import { makeAnswers, pointsFor, ROUND_SECONDS, shuffle, STARTING_LIVES } from './rules'
 import type { VocabularyWord } from './types'
+import { haptic, playCue } from './feedback'
 
 type Target = {
   container: Phaser.GameObjects.Container
@@ -21,6 +22,7 @@ export class GameScene extends Phaser.Scene {
   private trailGraphic!: Phaser.GameObjects.Graphics
   private particles!: Phaser.GameObjects.Graphics
   private deck: VocabularyWord[] = []
+  private wordPool: VocabularyWord[] = VOCABULARY
   private current!: VocabularyWord
   private score = 0
   private lives = STARTING_LIVES
@@ -36,18 +38,20 @@ export class GameScene extends Phaser.Scene {
   private pointerDown = false
   private finished = false
   private soundEnabled = true
+  private hitStopMs = 0
 
   constructor() { super('game') }
 
-  init(data: { soundEnabled?: boolean }) {
+  init(data: { soundEnabled?: boolean; words?: VocabularyWord[] }) {
     this.soundEnabled = data.soundEnabled ?? true
+    this.wordPool = data.words?.length ? data.words : VOCABULARY
   }
 
   create() {
     this.cameras.main.setBackgroundColor('#faf8f3')
     this.trailGraphic = this.add.graphics().setDepth(50)
     this.particles = this.add.graphics().setDepth(51)
-    this.deck = shuffle(VOCABULARY)
+    this.deck = shuffle(this.wordPool)
     this.input.on('pointerdown', this.onPointerDown, this)
     this.input.on('pointermove', this.onPointerMove, this)
     this.input.on('pointerup', this.onPointerUp, this)
@@ -57,6 +61,11 @@ export class GameScene extends Phaser.Scene {
 
   update(_time: number, delta: number) {
     if (this.finished) return
+    if (this.hitStopMs > 0) {
+      this.hitStopMs -= delta
+      this.drawTrail()
+      return
+    }
     this.elapsed += delta
     this.questionElapsed += delta
     this.secondsLeft = Math.max(0, ROUND_SECONDS - Math.floor(this.elapsed / 1000))
@@ -68,7 +77,7 @@ export class GameScene extends Phaser.Scene {
     for (const target of [...this.targets]) {
       target.container.x += target.vx * speedScale * delta / 1000
       target.container.y += target.vy * speedScale * delta / 1000
-      target.container.rotation += target.vx * 0.000002 * delta
+      target.container.rotation = Phaser.Math.Clamp(target.container.rotation + target.vx * 0.00000025 * delta, -0.052, 0.052)
       if (target.container.x < -180 || target.container.x > width + 180 || target.container.y > height + 100) {
         if (target.correct && !target.resolved) this.resolveMiss()
         target.container.destroy()
@@ -83,12 +92,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private nextQuestion() {
-    if (this.deck.length === 0) this.deck = shuffle(VOCABULARY)
+    if (this.deck.length === 0) this.deck = shuffle(this.wordPool)
     this.current = this.deck.shift()!
     this.questionStartedAt = this.time.now
     this.questionElapsed = 0
     this.clearTargets()
-    this.spawnTargets(makeAnswers(this.current))
+    this.spawnTargets(makeAnswers(this.current, this.wordPool))
     this.emitHud()
   }
 
@@ -111,6 +120,7 @@ export class GameScene extends Phaser.Scene {
         fontFamily: 'Inter, system-ui, sans-serif', fontSize: `${Phaser.Math.Clamp(w * 0.052, 20, 28)}px`, color: '#202322',
       }).setOrigin(0.5)
       const container = this.add.container(x, y, [background, label]).setSize(cardWidth, cardHeight).setDepth(10)
+      container.rotation = Phaser.Math.FloatBetween(-0.035, 0.035)
       const duration = Phaser.Math.Between(5200, 6900)
       const vx = (fromLeft ? 1 : -1) * (w + cardWidth * 2) / (duration / 1000)
       const vy = Phaser.Math.Between(-10, 14)
@@ -122,7 +132,7 @@ export class GameScene extends Phaser.Scene {
     if (this.finished) return
     this.pointerDown = true
     this.trail = [{ x: pointer.x, y: pointer.y }]
-    gameEvents.emit('mascot', { state: 'track', direction: 0 })
+    gameEvents.emit('mascot', { state: 'track', dx: 0, dy: 0 })
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer) {
@@ -132,7 +142,7 @@ export class GameScene extends Phaser.Scene {
     if (Phaser.Math.Distance.Between(previous.x, previous.y, point.x, point.y) < 4) return
     this.trail.push(point)
     if (this.trail.length > 18) this.trail.shift()
-    gameEvents.emit('mascot', { state: 'track', direction: point.x - previous.x })
+    gameEvents.emit('mascot', { state: 'track', dx: point.x - previous.x, dy: point.y - previous.y })
     this.checkCollisions(previous, point)
   }
 
@@ -140,7 +150,10 @@ export class GameScene extends Phaser.Scene {
     if (!this.pointerDown) return
     this.pointerDown = false
     const first = this.trail[0]
-    gameEvents.emit('mascot', { state: this.trail.length > 2 ? 'slash' : 'idle', direction: first ? pointer.x - first.x : 0 })
+    const dx = first ? pointer.x - first.x : 0
+    const dy = first ? pointer.y - first.y : 0
+    gameEvents.emit('mascot', { state: this.trail.length > 2 ? 'slash' : 'idle', dx, dy })
+    if (this.trail.length > 2) playCue('slash', this.soundEnabled)
     this.time.delayedCall(170, () => { this.trail = []; this.trailGraphic.clear() })
   }
 
@@ -157,6 +170,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resolveCorrect(target: Target) {
+    this.hitStopMs = 70
     this.attempted++
     this.correct++
     this.combo++
@@ -164,20 +178,23 @@ export class GameScene extends Phaser.Scene {
     this.score += pointsFor(this.combo)
     this.feedback('correct', 'CORRECT')
     this.burst(target.container.x, target.container.y, 0xe4513d)
-    this.playTone(620, 0.08)
+    playCue('correct', this.soundEnabled)
+    haptic(22)
     this.destroyTarget(target)
     this.emitHud()
     this.time.delayedCall(460, () => this.nextQuestion())
   }
 
   private resolveIncorrect(target: Target) {
+    this.hitStopMs = 95
     this.attempted++
     this.combo = 0
     this.lives--
     this.incorrect.push(this.current)
     this.feedback('incorrect', 'WRONG TARGET')
     this.burst(target.container.x, target.container.y, 0x8c8f8d)
-    this.playTone(180, 0.12)
+    playCue('incorrect', this.soundEnabled)
+    haptic([32, 28, 45])
     this.destroyTarget(target)
     this.emitHud()
     this.time.delayedCall(520, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
@@ -193,7 +210,8 @@ export class GameScene extends Phaser.Scene {
     this.lives--
     this.incorrect.push(this.current)
     this.feedback('missed', 'MISSED')
-    this.playTone(140, 0.1)
+    playCue('missed', this.soundEnabled)
+    haptic([18, 35, 18])
     this.emitHud()
     this.time.delayedCall(450, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
   }
@@ -245,19 +263,4 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(180, () => this.particles.clear())
   }
 
-  private playTone(frequency: number, duration: number) {
-    if (!this.soundEnabled) return
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    if (!AudioCtx) return
-    const context = new AudioCtx()
-    const oscillator = context.createOscillator()
-    const gain = context.createGain()
-    oscillator.frequency.value = frequency
-    oscillator.type = 'sine'
-    gain.gain.setValueAtTime(0.08, context.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration)
-    oscillator.connect(gain).connect(context.destination)
-    oscillator.start(); oscillator.stop(context.currentTime + duration)
-    oscillator.onended = () => context.close()
-  }
 }

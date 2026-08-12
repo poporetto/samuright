@@ -13,8 +13,8 @@ export function shuffle<T>(items: T[]): T[] {
   return result
 }
 
-export function makeAnswers(word: VocabularyWord): string[] {
-  const distractors = shuffle(VOCABULARY.filter((item) => item !== word))
+export function makeAnswers(word: VocabularyWord, pool: VocabularyWord[] = VOCABULARY): string[] {
+  const distractors = shuffle(pool.filter((item) => item !== word))
     .map((item) => item.meaning)
     .filter((meaning, index, all) => all.indexOf(meaning) === index && meaning !== word.meaning)
     .slice(0, 2)

@@ -4,7 +4,7 @@ type Events = {
   hud: HudState
   feedback: Feedback
   complete: RoundSummary
-  mascot: { state: 'idle' | 'track' | 'slash'; direction?: number }
+  mascot: { state: 'idle' | 'track' | 'slash'; dx?: number; dy?: number }
 }
 
 type Listener<K extends keyof Events> = (value: Events[K]) => void
