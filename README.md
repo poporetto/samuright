@@ -9,5 +9,5 @@ npm install
 npm run dev
 ```
 
-Create a production build with `npm run build`.
+Create a production build in `docs/` with `npm run build`.
 Kanji and Vocabulary memorisation game
