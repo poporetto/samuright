@@ -66,6 +66,7 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointermove', this.onPointerMove, this)
     this.input.on('pointerup', this.onPointerUp, this)
     this.input.on('pointerupoutside', this.onPointerUp, this)
+    this.input.on('pointercancel', this.onPointerCancel, this)
     this.nextQuestion()
   }
 
@@ -160,23 +161,70 @@ export class GameScene extends Phaser.Scene {
 
   private onPointerUp(pointer: Phaser.Input.Pointer) {
     if (!this.pointerDown) return
+    this.finishSwipe(pointer)
+  }
+
+  private finishSwipe(pointer?: Phaser.Input.Pointer) {
+    if (!this.pointerDown) return
+    const finalPoint = pointer ? { x: pointer.x, y: pointer.y } : this.trail[this.trail.length - 1]
+    const previous = this.trail[this.trail.length - 1]
+    if (finalPoint) {
+      if (previous && (previous.x !== finalPoint.x || previous.y !== finalPoint.y)) {
+        this.checkCollisions(previous, finalPoint)
+      }
+      // A fast touch can deliver only down/up. Sweep the complete gesture and
+      // also test the release point so the last iPhone event cannot skip a card.
+      const first = this.trail[0]
+      if (first && (first.x !== finalPoint.x || first.y !== finalPoint.y)) {
+        this.checkCollisions(first, finalPoint)
+      }
+      this.checkPointCollisions(finalPoint)
+    }
     this.pointerDown = false
     const first = this.trail[0]
-    const dx = first ? pointer.x - first.x : 0
-    const dy = first ? pointer.y - first.y : 0
+    const dx = first && finalPoint ? finalPoint.x - first.x : 0
+    const dy = first && finalPoint ? finalPoint.y - first.y : 0
     gameEvents.emit('mascot', { state: this.trail.length > 2 ? 'slash' : 'idle', dx, dy })
     if (this.trail.length > 2) playCue('slash', this.soundEnabled)
     this.time.delayedCall(170, () => { this.trail = []; this.trailGraphic.clear() })
+  }
+
+  private onPointerCancel(pointer?: Phaser.Input.Pointer) {
+    if (!this.pointerDown) return
+    if (pointer) return this.finishSwipe(pointer)
+    this.pointerDown = false
+    this.trail = []
+    this.trailGraphic.clear()
+    gameEvents.emit('mascot', { state: 'idle' })
   }
 
   private checkCollisions(a: Point, b: Point) {
     for (const target of this.targets) {
       if (target.resolved) continue
       const bounds = target.container.getBounds()
-      if (Phaser.Geom.Intersects.LineToRectangle(new Phaser.Geom.Line(a.x, a.y, b.x, b.y), bounds)) {
+      // Finger input is coarser than a mouse, and iOS may coalesce the final
+      // touchmove. A small collision cushion keeps a visible slash reliable
+      // without making adjacent targets feel sticky.
+      const touchPadding = 12
+      const paddedBounds = new Phaser.Geom.Rectangle(bounds.x - touchPadding, bounds.y - touchPadding, bounds.width + touchPadding * 2, bounds.height + touchPadding * 2)
+      if (Phaser.Geom.Intersects.LineToRectangle(new Phaser.Geom.Line(a.x, a.y, b.x, b.y), paddedBounds)) {
         target.resolved = true
         target.correct ? this.resolveCorrect(target) : this.resolveIncorrect(target)
         break
+      }
+    }
+  }
+
+  private checkPointCollisions(point: Point) {
+    const touchPadding = 20
+    for (const target of this.targets) {
+      if (target.resolved) continue
+      const bounds = target.container.getBounds()
+      const paddedBounds = new Phaser.Geom.Rectangle(bounds.x - touchPadding, bounds.y - touchPadding, bounds.width + touchPadding * 2, bounds.height + touchPadding * 2)
+      if (paddedBounds.contains(point.x, point.y)) {
+        target.resolved = true
+        target.correct ? this.resolveCorrect(target) : this.resolveIncorrect(target)
+        return
       }
     }
   }
