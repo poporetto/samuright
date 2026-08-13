@@ -44,6 +44,8 @@ export class GameScene extends Phaser.Scene {
   private pointerDown = false
   private nativeTouchActive = false
   private finished = false
+  private questionAdvanceTimer: number | null = null
+  private questionAdvanceQueued = false
   private soundEnabled = true
   private hitStopMs = 0
 
@@ -69,8 +71,34 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerupoutside', this.onPointerUp, this)
     this.input.on('pointercancel', this.onPointerCancel, this)
     this.bindNativeTouchInput()
-    this.events.once('shutdown', this.unbindNativeTouchInput, this)
+    this.events.once('shutdown', this.handleShutdown, this)
     this.nextQuestion()
+  }
+
+  private handleShutdown() {
+    this.unbindNativeTouchInput()
+    this.clearQuestionAdvanceTimer()
+  }
+
+  /**
+   * Scene timers can be suspended while iOS is handing off a touch gesture.
+   * Keep the question transition on the browser clock and guard it so one
+   * swipe can only resolve one answer.
+   */
+  private scheduleQuestionAdvance(delay: number, callback: () => void) {
+    if (this.finished || this.questionAdvanceQueued) return
+    this.questionAdvanceQueued = true
+    this.questionAdvanceTimer = window.setTimeout(() => {
+      this.questionAdvanceTimer = null
+      this.questionAdvanceQueued = false
+      if (!this.finished) callback()
+    }, delay)
+  }
+
+  private clearQuestionAdvanceTimer() {
+    if (this.questionAdvanceTimer !== null) window.clearTimeout(this.questionAdvanceTimer)
+    this.questionAdvanceTimer = null
+    this.questionAdvanceQueued = false
   }
 
   private nativeTouchCanvas?: HTMLCanvasElement
@@ -173,6 +201,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private nextQuestion() {
+    if (this.finished) return
+    this.questionAdvanceQueued = false
     if (this.deck.length === 0) this.deck = this.makeDeck()
     this.current = this.deck.shift()!
     this.questionMode = chooseMode(this.current, this.learningProfile)
@@ -319,6 +349,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resolveCorrect(target: Target) {
+    if (this.finished || this.questionAdvanceQueued) return
     this.hitStopMs = 70
     this.attempted++
     this.correct++
@@ -332,10 +363,11 @@ export class GameScene extends Phaser.Scene {
     haptic(22)
     this.destroyTarget(target)
     this.emitHud()
-    this.time.delayedCall(460, () => this.nextQuestion())
+    this.scheduleQuestionAdvance(460, () => this.nextQuestion())
   }
 
   private resolveIncorrect(target: Target) {
+    if (this.finished || this.questionAdvanceQueued) return
     this.hitStopMs = 95
     this.attempted++
     this.combo = 0
@@ -348,11 +380,11 @@ export class GameScene extends Phaser.Scene {
     haptic([32, 28, 45])
     this.destroyTarget(target)
     this.emitHud()
-    this.time.delayedCall(520, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
+    this.scheduleQuestionAdvance(520, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
   }
 
   private resolveMiss() {
-    if (this.finished) return
+    if (this.finished || this.questionAdvanceQueued) return
     const correctTarget = this.targets.find((target) => target.correct && !target.resolved)
     if (!correctTarget) return
     correctTarget.resolved = true
@@ -365,7 +397,7 @@ export class GameScene extends Phaser.Scene {
     playCue('missed', this.soundEnabled)
     haptic([18, 35, 18])
     this.emitHud()
-    this.time.delayedCall(450, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
+    this.scheduleQuestionAdvance(450, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
   }
 
   private destroyTarget(target: Target) {
@@ -390,6 +422,7 @@ export class GameScene extends Phaser.Scene {
 
   private completeRound() {
     if (this.finished) return
+    this.clearQuestionAdvanceTimer()
     this.finished = true
     this.clearTargets()
     gameEvents.emit('complete', { score: this.score, correct: this.correct, attempted: this.attempted, bestCombo: this.bestCombo, incorrect: this.incorrect, outcomes: this.outcomes, mode: this.runMode })
