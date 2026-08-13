@@ -1,9 +1,10 @@
 import Phaser from 'phaser'
 import { VOCABULARY } from '../data/vocabulary'
 import { gameEvents } from './events'
-import { makeAnswers, pointsFor, ROUND_SECONDS, shuffle, STARTING_LIVES } from './rules'
-import type { VocabularyWord } from './types'
+import { answerFor, makeAnswers, pointsFor, ROUND_SECONDS, shuffle, STARTING_LIVES } from './rules'
+import type { QuestionMode, RunMode, VocabularyWord, WordOutcome } from './types'
 import { haptic, playCue } from './feedback'
+import { adaptiveDeck, chooseMode, emptyProfile, type LearningProfile } from './learning'
 
 type Target = {
   container: Phaser.GameObjects.Container
@@ -24,6 +25,11 @@ export class GameScene extends Phaser.Scene {
   private deck: VocabularyWord[] = []
   private wordPool: VocabularyWord[] = VOCABULARY
   private current!: VocabularyWord
+  private questionMode: QuestionMode = 'japanese-meaning'
+  private learningProfile: LearningProfile = emptyProfile()
+  private outcomes: WordOutcome[] = []
+  private runMode: RunMode = 'chapter'
+  private roundSeconds = ROUND_SECONDS
   private score = 0
   private lives = STARTING_LIVES
   private combo = 0
@@ -42,16 +48,20 @@ export class GameScene extends Phaser.Scene {
 
   constructor() { super('game') }
 
-  init(data: { soundEnabled?: boolean; words?: VocabularyWord[] }) {
+  init(data: { soundEnabled?: boolean; words?: VocabularyWord[]; profile?: LearningProfile; mode?: RunMode }) {
     this.soundEnabled = data.soundEnabled ?? true
     this.wordPool = data.words?.length ? data.words : VOCABULARY
+    this.learningProfile = data.profile ?? emptyProfile()
+    this.runMode = data.mode ?? 'chapter'
+    this.roundSeconds = this.runMode === 'focus' ? 45 : this.runMode === 'daily' ? 60 : ROUND_SECONDS
+    this.secondsLeft = this.roundSeconds
   }
 
   create() {
     this.cameras.main.setBackgroundColor('#faf8f3')
     this.trailGraphic = this.add.graphics().setDepth(50)
     this.particles = this.add.graphics().setDepth(51)
-    this.deck = shuffle(this.wordPool)
+    this.deck = this.makeDeck()
     this.input.on('pointerdown', this.onPointerDown, this)
     this.input.on('pointermove', this.onPointerMove, this)
     this.input.on('pointerup', this.onPointerUp, this)
@@ -68,10 +78,10 @@ export class GameScene extends Phaser.Scene {
     }
     this.elapsed += delta
     this.questionElapsed += delta
-    this.secondsLeft = Math.max(0, ROUND_SECONDS - Math.floor(this.elapsed / 1000))
+    this.secondsLeft = Math.max(0, this.roundSeconds - Math.floor(this.elapsed / 1000))
     if (this.secondsLeft <= 0 || this.lives <= 0) return this.completeRound()
 
-    const speedScale = 1 + Math.min(this.elapsed / 120000, 1) * 1.15
+    const speedScale = 1 + Math.min(this.elapsed / (this.roundSeconds * 1000), 1) * 1.15
     const width = this.scale.width
     const height = this.scale.height
     for (const target of [...this.targets]) {
@@ -92,12 +102,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private nextQuestion() {
-    if (this.deck.length === 0) this.deck = shuffle(this.wordPool)
+    if (this.deck.length === 0) this.deck = this.makeDeck()
     this.current = this.deck.shift()!
+    this.questionMode = chooseMode(this.current, this.learningProfile)
     this.questionStartedAt = this.time.now
     this.questionElapsed = 0
     this.clearTargets()
-    this.spawnTargets(makeAnswers(this.current, this.wordPool))
+    this.spawnTargets(makeAnswers(this.current, this.wordPool, this.questionMode))
     this.emitHud()
   }
 
@@ -124,7 +135,7 @@ export class GameScene extends Phaser.Scene {
       const duration = Phaser.Math.Between(5200, 6900)
       const vx = (fromLeft ? 1 : -1) * (w + cardWidth * 2) / (duration / 1000)
       const vy = Phaser.Math.Between(-10, 14)
-      this.targets.push({ container, meaning: answer, correct: answer === this.current.meaning, vx, vy, resolved: false })
+      this.targets.push({ container, meaning: answer, correct: answer === answerFor(this.current, this.questionMode), vx, vy, resolved: false })
     })
   }
 
@@ -142,7 +153,8 @@ export class GameScene extends Phaser.Scene {
     if (Phaser.Math.Distance.Between(previous.x, previous.y, point.x, point.y) < 4) return
     this.trail.push(point)
     if (this.trail.length > 18) this.trail.shift()
-    gameEvents.emit('mascot', { state: 'track', dx: point.x - previous.x, dy: point.y - previous.y })
+    const directionAnchor = this.trail[Math.max(0, this.trail.length - 5)]
+    gameEvents.emit('mascot', { state: 'track', dx: point.x - directionAnchor.x, dy: point.y - directionAnchor.y })
     this.checkCollisions(previous, point)
   }
 
@@ -176,6 +188,7 @@ export class GameScene extends Phaser.Scene {
     this.combo++
     this.bestCombo = Math.max(this.bestCombo, this.combo)
     this.score += pointsFor(this.combo)
+    this.recordOutcome(true)
     this.feedback('correct', 'CORRECT')
     this.burst(target.container.x, target.container.y, 0xe4513d)
     playCue('correct', this.soundEnabled)
@@ -191,6 +204,7 @@ export class GameScene extends Phaser.Scene {
     this.combo = 0
     this.lives--
     this.incorrect.push(this.current)
+    this.recordOutcome(false)
     this.feedback('incorrect', 'WRONG TARGET')
     this.burst(target.container.x, target.container.y, 0x8c8f8d)
     playCue('incorrect', this.soundEnabled)
@@ -209,6 +223,7 @@ export class GameScene extends Phaser.Scene {
     this.combo = 0
     this.lives--
     this.incorrect.push(this.current)
+    this.recordOutcome(false)
     this.feedback('missed', 'MISSED')
     playCue('missed', this.soundEnabled)
     haptic([18, 35, 18])
@@ -231,14 +246,28 @@ export class GameScene extends Phaser.Scene {
   }
 
   private emitHud() {
-    gameEvents.emit('hud', { score: this.score, lives: this.lives, combo: this.combo, secondsLeft: this.secondsLeft, current: this.current })
+    const prompt = this.questionMode === 'meaning-japanese' ? this.current.meaning : this.questionMode === 'reading-meaning' ? this.current.reading : this.current.japanese
+    const promptLabel = this.questionMode === 'meaning-japanese' ? 'Slash the Japanese for' : this.questionMode === 'reading-meaning' ? 'Slash the meaning of this reading' : 'Slash the meaning of'
+    gameEvents.emit('hud', { score: this.score, lives: this.lives, combo: this.combo, secondsLeft: this.secondsLeft, current: this.current, prompt, promptLabel, promptReading: this.questionMode === 'japanese-meaning' ? this.current.reading : undefined, mode: this.questionMode })
   }
 
   private completeRound() {
     if (this.finished) return
     this.finished = true
     this.clearTargets()
-    gameEvents.emit('complete', { score: this.score, correct: this.correct, attempted: this.attempted, bestCombo: this.bestCombo, incorrect: this.incorrect })
+    gameEvents.emit('complete', { score: this.score, correct: this.correct, attempted: this.attempted, bestCombo: this.bestCombo, incorrect: this.incorrect, outcomes: this.outcomes, mode: this.runMode })
+  }
+
+  private makeDeck() {
+    const adaptive = adaptiveDeck(this.wordPool, this.learningProfile)
+    const weak = adaptive.filter((word) => (this.learningProfile.mastery[word.japanese]?.level ?? 0) < 2)
+    return shuffle([...adaptive, ...weak.slice(0, Math.min(4, weak.length))])
+  }
+
+  private recordOutcome(correct: boolean) {
+    const outcome = { word: this.current, correct, mode: this.questionMode }
+    this.outcomes.push(outcome)
+    gameEvents.emit('outcome', outcome)
   }
 
   private drawTrail() {

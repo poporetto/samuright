@@ -1,8 +1,9 @@
 import Phaser from 'phaser'
 import { GameScene } from './GameScene'
-import type { VocabularyWord } from './types'
+import type { RunMode, VocabularyWord } from './types'
+import type { LearningProfile } from './learning'
 
-export function createGame(parent: HTMLElement, soundEnabled: boolean, words: VocabularyWord[]) {
+export function createGame(parent: HTMLElement, soundEnabled: boolean, words: VocabularyWord[], profile: LearningProfile, mode: RunMode) {
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
@@ -13,6 +14,6 @@ export function createGame(parent: HTMLElement, soundEnabled: boolean, words: Vo
     render: { antialias: true, pixelArt: false },
     scene: [GameScene],
   })
-  game.scene.start('game', { soundEnabled, words })
+  game.scene.start('game', { soundEnabled, words, profile, mode })
   return game
 }

@@ -1,9 +1,10 @@
-import type { Feedback, HudState, RoundSummary } from './types'
+import type { Feedback, HudState, RoundSummary, WordOutcome } from './types'
 
 type Events = {
   hud: HudState
   feedback: Feedback
   complete: RoundSummary
+  outcome: WordOutcome
   mascot: { state: 'idle' | 'track' | 'slash'; dx?: number; dy?: number }
 }
 

@@ -1,5 +1,5 @@
 import { VOCABULARY } from '../data/vocabulary'
-import type { VocabularyWord } from './types'
+import type { QuestionMode, VocabularyWord } from './types'
 
 export const ROUND_SECONDS = 120
 export const STARTING_LIVES = 3
@@ -13,12 +13,16 @@ export function shuffle<T>(items: T[]): T[] {
   return result
 }
 
-export function makeAnswers(word: VocabularyWord, pool: VocabularyWord[] = VOCABULARY): string[] {
+export function answerFor(word: VocabularyWord, mode: QuestionMode) {
+  return mode === 'meaning-japanese' ? word.japanese : word.meaning
+}
+
+export function makeAnswers(word: VocabularyWord, pool: VocabularyWord[] = VOCABULARY, mode: QuestionMode = 'japanese-meaning'): string[] {
   const distractors = shuffle(pool.filter((item) => item !== word))
-    .map((item) => item.meaning)
-    .filter((meaning, index, all) => all.indexOf(meaning) === index && meaning !== word.meaning)
+    .map((item) => answerFor(item, mode))
+    .filter((answer, index, all) => all.indexOf(answer) === index && answer !== answerFor(word, mode))
     .slice(0, 2)
-  return shuffle([word.meaning, ...distractors])
+  return shuffle([answerFor(word, mode), ...distractors])
 }
 
 export function pointsFor(combo: number) {
