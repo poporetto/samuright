@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { VOCABULARY } from '../data/vocabulary'
 import { gameEvents } from './events'
-import { answerFor, makeAnswers, pointsFor, ROUND_SECONDS, shuffle, STARTING_LIVES } from './rules'
+import { answerFor, makeAnswers, pointsFor, ROUND_SECONDS, shuffle, STARTING_LIVES, STORY_FOCUS, STORY_RESOLVE } from './rules'
 import type { QuestionMode, RunMode, VocabularyWord, WordOutcome } from './types'
 import { haptic, playCue } from './feedback'
 import { adaptiveDeck, chooseMode, emptyProfile, type LearningProfile } from './learning'
@@ -35,6 +35,9 @@ export class GameScene extends Phaser.Scene {
   private roundSeconds = ROUND_SECONDS
   private score = 0
   private lives = STARTING_LIVES
+  private maxFocus = STARTING_LIVES
+  private resolve = STORY_RESOLVE
+  private maxResolve = STORY_RESOLVE
   private combo = 0
   private bestCombo = 0
   private correct = 0
@@ -51,15 +54,27 @@ export class GameScene extends Phaser.Scene {
   private questionAdvanceQueued = false
   private soundEnabled = true
   private hitStopMs = 0
+  private opponentId = ''
+  private battlePhase: 1 | 2 | 3 = 1
+  private stillMindMs = 0
+  private stillMindUsed = false
 
   constructor() { super('game') }
 
-  init(data: { soundEnabled?: boolean; words?: VocabularyWord[]; profile?: LearningProfile; mode?: RunMode }) {
+  init(data: { soundEnabled?: boolean; words?: VocabularyWord[]; profile?: LearningProfile; mode?: RunMode; opponentId?: string }) {
     this.soundEnabled = data.soundEnabled ?? true
     this.wordPool = data.words?.length ? data.words : VOCABULARY
     this.learningProfile = data.profile ?? emptyProfile()
     this.runMode = data.mode ?? 'chapter'
-    this.roundSeconds = this.runMode === 'focus' ? 45 : this.runMode === 'daily' ? 60 : ROUND_SECONDS
+    this.opponentId = data.opponentId ?? ''
+    this.roundSeconds = this.runMode === 'chapter' ? 90 : this.runMode === 'focus' ? 45 : this.runMode === 'daily' ? 60 : ROUND_SECONDS
+    this.maxFocus = this.runMode === 'chapter' ? STORY_FOCUS : STARTING_LIVES
+    this.lives = this.maxFocus
+    this.maxResolve = this.runMode === 'chapter' ? Math.min(STORY_RESOLVE, Math.max(8, this.wordPool.length)) : STORY_RESOLVE
+    this.resolve = this.maxResolve
+    this.score = 0; this.combo = 0; this.bestCombo = 0; this.correct = 0; this.attempted = 0
+    this.elapsed = 0; this.outcomes = []; this.incorrect = []; this.finished = false; this.hitStopMs = 0
+    this.battlePhase = 1; this.stillMindMs = 0; this.stillMindUsed = false
     this.secondsLeft = this.roundSeconds
   }
 
@@ -180,10 +195,13 @@ export class GameScene extends Phaser.Scene {
     }
     this.elapsed += delta
     this.questionElapsed += delta
+    this.stillMindMs = Math.max(0, this.stillMindMs - delta)
     this.secondsLeft = Math.max(0, this.roundSeconds - Math.floor(this.elapsed / 1000))
     if (this.secondsLeft <= 0 || this.lives <= 0) return this.completeRound()
 
-    const speedScale = 1 + Math.min(this.elapsed / (this.roundSeconds * 1000), 1) * 1.15
+    const storyPressure = this.runMode === 'chapter' ? this.battlePhase === 3 ? 1.18 : this.battlePhase === 2 ? 1.08 : 1 : 1
+    const stillMindScale = this.stillMindMs > 0 ? .52 : 1
+    const speedScale = (1 + Math.min(this.elapsed / (this.roundSeconds * 1000), 1) * 1.15) * storyPressure * stillMindScale
     const width = this.scale.width
     const height = this.scale.height
     for (const target of [...this.targets]) {
@@ -361,6 +379,9 @@ export class GameScene extends Phaser.Scene {
     this.combo++
     this.bestCombo = Math.max(this.bestCombo, this.combo)
     this.score += pointsFor(this.combo)
+    if (this.runMode === 'chapter') this.resolve = Math.max(0, this.resolve - 1)
+    if (this.runMode === 'chapter') this.updateBattlePhase()
+    if (this.opponentId === 'iwao-jubei' && !this.stillMindUsed && this.combo >= 5) this.activateStillMind()
     this.recordOutcome(true)
     this.feedback('correct', 'CORRECT')
     this.burst(target.container.x, target.container.y, 0xe4513d)
@@ -368,7 +389,7 @@ export class GameScene extends Phaser.Scene {
     haptic(22)
     this.sliceTarget(target, slashStart, slashEnd, 0xe4513d)
     this.emitHud()
-    this.scheduleQuestionAdvance(460, () => this.nextQuestion())
+    this.scheduleQuestionAdvance(460, () => this.runMode === 'chapter' && this.resolve <= 0 ? this.completeRound() : this.nextQuestion())
   }
 
   private resolveIncorrect(target: Target, slashStart: Point, slashEnd: Point) {
@@ -491,10 +512,29 @@ export class GameScene extends Phaser.Scene {
     gameEvents.emit('feedback', { type, message })
   }
 
+  private updateBattlePhase() {
+    const ratio = this.resolve / Math.max(1, this.maxResolve)
+    const nextPhase: 1 | 2 | 3 = ratio > .66 ? 1 : ratio > .33 ? 2 : 3
+    if (nextPhase === this.battlePhase) return
+    this.battlePhase = nextPhase
+    if (this.opponentId !== 'iwao-jubei') return
+    const phaseCopy = nextPhase === 2
+      ? { title: 'JŪBEI · SECOND STANCE', message: 'The old ronin’s smile sharpens. The lesson quickens.' }
+      : { title: 'JŪBEI · FINAL STANCE', message: 'No wasted motion now. Keep your mind still.' }
+    gameEvents.emit('battle', { type: 'phase', phase: nextPhase, ...phaseCopy })
+  }
+
+  private activateStillMind() {
+    this.stillMindUsed = true
+    this.stillMindMs = 1900
+    gameEvents.emit('battle', { type: 'ability', title: 'STILL MIND · 静心', message: 'Discipline slows the field.' })
+    haptic([12, 28, 12])
+  }
+
   private emitHud() {
     const prompt = this.questionMode === 'meaning-japanese' ? this.current.meaning : this.questionMode === 'reading-meaning' ? this.current.reading : this.current.japanese
     const promptLabel = this.questionMode === 'meaning-japanese' ? 'Slash the Japanese for' : this.questionMode === 'reading-meaning' ? 'Slash the meaning of this reading' : 'Slash the meaning of'
-    gameEvents.emit('hud', { score: this.score, lives: this.lives, combo: this.combo, secondsLeft: this.secondsLeft, current: this.current, prompt, promptLabel, promptReading: this.questionMode === 'japanese-meaning' ? this.current.reading : undefined, mode: this.questionMode })
+    gameEvents.emit('hud', { score: this.score, lives: this.lives, combo: this.combo, secondsLeft: this.secondsLeft, current: this.current, prompt, promptLabel, promptReading: this.questionMode === 'japanese-meaning' ? this.current.reading : undefined, mode: this.questionMode, focus: this.lives, maxFocus: this.maxFocus, resolve: this.resolve, maxResolve: this.maxResolve, battlePhase: this.battlePhase })
   }
 
   private completeRound() {

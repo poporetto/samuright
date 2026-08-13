@@ -30,6 +30,11 @@ export type HudState = {
   promptLabel: string
   promptReading?: string
   mode: QuestionMode
+  focus: number
+  maxFocus: number
+  resolve: number
+  maxResolve: number
+  battlePhase: 1 | 2 | 3
 }
 
 export type Feedback = { type: 'correct' | 'incorrect' | 'missed'; message: string }

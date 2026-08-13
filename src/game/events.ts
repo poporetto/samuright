@@ -6,6 +6,7 @@ type Events = {
   complete: RoundSummary
   outcome: WordOutcome
   mascot: { state: 'idle' | 'track' | 'slash'; dx?: number; dy?: number }
+  battle: { type: 'phase' | 'ability'; phase?: 1 | 2 | 3; title: string; message: string }
 }
 
 type Listener<K extends keyof Events> = (value: Events[K]) => void

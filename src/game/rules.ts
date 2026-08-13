@@ -3,6 +3,8 @@ import type { QuestionMode, VocabularyWord } from './types'
 
 export const ROUND_SECONDS = 120
 export const STARTING_LIVES = 3
+export const STORY_FOCUS = 5
+export const STORY_RESOLVE = 10
 
 export function shuffle<T>(items: T[]): T[] {
   const result = [...items]
