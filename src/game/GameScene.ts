@@ -42,6 +42,7 @@ export class GameScene extends Phaser.Scene {
   private questionStartedAt = 0
   private questionElapsed = 0
   private pointerDown = false
+  private nativeTouchActive = false
   private finished = false
   private soundEnabled = true
   private hitStopMs = 0
@@ -67,7 +68,76 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerup', this.onPointerUp, this)
     this.input.on('pointerupoutside', this.onPointerUp, this)
     this.input.on('pointercancel', this.onPointerCancel, this)
+    this.bindNativeTouchInput()
+    this.events.once('shutdown', this.unbindNativeTouchInput, this)
     this.nextQuestion()
+  }
+
+  private nativeTouchCanvas?: HTMLCanvasElement
+  private nativeTouchHandlers?: {
+    start: (event: TouchEvent) => void
+    move: (event: TouchEvent) => void
+    end: (event: TouchEvent) => void
+    cancel: (event: TouchEvent) => void
+  }
+
+  private bindNativeTouchInput() {
+    const canvas = this.game.canvas
+    if (!canvas) return
+    this.nativeTouchCanvas = canvas
+    const toPoint = (touch: Touch): Point => {
+      const rect = canvas.getBoundingClientRect()
+      return {
+        x: (touch.clientX - rect.left) * (this.scale.width / Math.max(1, rect.width)),
+        y: (touch.clientY - rect.top) * (this.scale.height / Math.max(1, rect.height)),
+      }
+    }
+    const firstTouch = (event: TouchEvent) => event.changedTouches[0] ?? event.touches[0]
+    const start = (event: TouchEvent) => {
+      const touch = firstTouch(event)
+      if (!touch || this.finished) return
+      event.preventDefault()
+      this.nativeTouchActive = true
+      this.beginSwipe(toPoint(touch))
+    }
+    const move = (event: TouchEvent) => {
+      if (!this.nativeTouchActive) return
+      const touch = firstTouch(event)
+      if (!touch) return
+      event.preventDefault()
+      this.moveSwipe(toPoint(touch))
+    }
+    const end = (event: TouchEvent) => {
+      if (!this.nativeTouchActive) return
+      const touch = firstTouch(event)
+      event.preventDefault()
+      this.endSwipe(touch ? toPoint(touch) : undefined)
+      this.nativeTouchActive = false
+    }
+    const cancel = (event: TouchEvent) => {
+      if (!this.nativeTouchActive) return
+      event.preventDefault()
+      this.cancelSwipe()
+      this.nativeTouchActive = false
+    }
+    this.nativeTouchHandlers = { start, move, end, cancel }
+    canvas.addEventListener('touchstart', start, { passive: false })
+    canvas.addEventListener('touchmove', move, { passive: false })
+    canvas.addEventListener('touchend', end, { passive: false })
+    canvas.addEventListener('touchcancel', cancel, { passive: false })
+  }
+
+  private unbindNativeTouchInput() {
+    if (!this.nativeTouchCanvas || !this.nativeTouchHandlers) return
+    const canvas = this.nativeTouchCanvas
+    const { start, move, end, cancel } = this.nativeTouchHandlers
+    canvas.removeEventListener('touchstart', start)
+    canvas.removeEventListener('touchmove', move)
+    canvas.removeEventListener('touchend', end)
+    canvas.removeEventListener('touchcancel', cancel)
+    this.nativeTouchCanvas = undefined
+    this.nativeTouchHandlers = undefined
+    this.nativeTouchActive = false
   }
 
   update(_time: number, delta: number) {
@@ -141,16 +211,25 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer) {
-    if (this.finished) return
-    this.pointerDown = true
-    this.trail = [{ x: pointer.x, y: pointer.y }]
-    gameEvents.emit('mascot', { state: 'track', dx: 0, dy: 0 })
+    if (this.nativeTouchActive) return
+    this.beginSwipe({ x: pointer.x, y: pointer.y })
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer) {
+    if (this.nativeTouchActive) return
+    this.moveSwipe({ x: pointer.x, y: pointer.y })
+  }
+
+  private beginSwipe(point: Point) {
+    if (this.finished) return
+    this.pointerDown = true
+    this.trail = [point]
+    gameEvents.emit('mascot', { state: 'track', dx: 0, dy: 0 })
+  }
+
+  private moveSwipe(point: Point) {
     if (!this.pointerDown || this.finished) return
     const previous = this.trail[this.trail.length - 1]
-    const point = { x: pointer.x, y: pointer.y }
     if (Phaser.Math.Distance.Between(previous.x, previous.y, point.x, point.y) < 4) return
     this.trail.push(point)
     if (this.trail.length > 18) this.trail.shift()
@@ -160,13 +239,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPointerUp(pointer: Phaser.Input.Pointer) {
-    if (!this.pointerDown) return
-    this.finishSwipe(pointer)
+    if (this.nativeTouchActive) return
+    this.endSwipe({ x: pointer.x, y: pointer.y })
   }
 
-  private finishSwipe(pointer?: Phaser.Input.Pointer) {
+  private endSwipe(point?: Point) {
     if (!this.pointerDown) return
-    const finalPoint = pointer ? { x: pointer.x, y: pointer.y } : this.trail[this.trail.length - 1]
+    this.finishSwipe(point)
+  }
+
+  private finishSwipe(point?: Point) {
+    if (!this.pointerDown) return
+    const finalPoint = point ?? this.trail[this.trail.length - 1]
     const previous = this.trail[this.trail.length - 1]
     if (finalPoint) {
       if (previous && (previous.x !== finalPoint.x || previous.y !== finalPoint.y)) {
@@ -190,8 +274,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPointerCancel(pointer?: Phaser.Input.Pointer) {
+    if (this.nativeTouchActive) return
+    this.cancelSwipe(pointer ? { x: pointer.x, y: pointer.y } : undefined)
+  }
+
+  private cancelSwipe(point?: Point) {
     if (!this.pointerDown) return
-    if (pointer) return this.finishSwipe(pointer)
+    if (point) return this.finishSwipe(point)
     this.pointerDown = false
     this.trail = []
     this.trailGraphic.clear()
