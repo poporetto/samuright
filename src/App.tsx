@@ -213,18 +213,27 @@ function DialogueScreen({ chapter, lines, onContinue }: { chapter: Chapter; line
 
 function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onComplete }: { sound: boolean; chapter: Chapter; words: VocabularyWord[]; profile: LearningProfile; runMode: RunMode; companionMet: boolean; onComplete: (result: RoundSummary) => void }) {
   const host = useRef<HTMLDivElement>(null); const game = useRef<Phaser.Game | null>(null)
-  const companionTimer = useRef<number | null>(null); const mascotTimer = useRef<number | null>(null); const correctCheerCount = useRef(0)
+  const companionTimer = useRef<number | null>(null); const mascotTimer = useRef<number | null>(null); const opponentTimer = useRef<number | null>(null); const correctCheerCount = useRef(0)
   const [hud, setHud] = useState(initialHud); const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [mascot, setMascot] = useState<{ state: 'idle' | 'track' | 'slash'; dx?: number; dy?: number }>({ state: 'idle' })
   const [companionReaction, setCompanionReaction] = useState<CompanionReaction>({ kind: 'idle', cue: 0 })
-  const [opponentLine, setOpponentLine] = useState(chapter.opponent.opening)
+  const [opponentLine, setOpponentLine] = useState<string | null>(chapter.opponent.opening)
   const showCompanion = runMode === 'chapter' ? chapter.number >= 2 : companionMet
   useEffect(() => {
     correctCheerCount.current = 0
+    const showOpponentLine = (line: string, duration = 1900) => {
+      if (opponentTimer.current !== null) window.clearTimeout(opponentTimer.current)
+      setOpponentLine(line)
+      opponentTimer.current = window.setTimeout(() => {
+        setOpponentLine(null)
+        opponentTimer.current = null
+      }, duration)
+    }
+    if (runMode === 'chapter') showOpponentLine(chapter.opponent.opening, 2800)
     const offHud = gameEvents.on('hud', setHud)
     const offFeedback = gameEvents.on('feedback', (value) => {
       setFeedback(value); window.setTimeout(() => setFeedback(null), 520)
-      if (runMode === 'chapter') setOpponentLine(value.type === 'correct' ? chapter.opponent.pressured : chapter.opponent.counter)
+      if (runMode === 'chapter') showOpponentLine(value.type === 'correct' ? chapter.opponent.pressured : chapter.opponent.counter)
       if (!showCompanion) return
 
       if (companionTimer.current !== null) {
@@ -259,14 +268,14 @@ function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onC
       }, MASCOT_SLASH_RESET_MS)
     })
     if (host.current) game.current = createGame(host.current, sound, words, profile, runMode)
-    return () => { offHud(); offFeedback(); offComplete(); offMascot(); if (companionTimer.current !== null) window.clearTimeout(companionTimer.current); if (mascotTimer.current !== null) window.clearTimeout(mascotTimer.current); game.current?.destroy(true); game.current = null }
-  }, [chapter.opponent.counter, chapter.opponent.pressured, onComplete, profile, runMode, showCompanion, sound, words])
+    return () => { offHud(); offFeedback(); offComplete(); offMascot(); if (companionTimer.current !== null) window.clearTimeout(companionTimer.current); if (mascotTimer.current !== null) window.clearTimeout(mascotTimer.current); if (opponentTimer.current !== null) window.clearTimeout(opponentTimer.current); game.current?.destroy(true); game.current = null }
+  }, [chapter.opponent.counter, chapter.opponent.opening, chapter.opponent.pressured, onComplete, profile, runMode, showCompanion, sound, words])
   return <main className="screen game-screen"><div ref={host} className="game-canvas" />
     <header className="hud"><span>✦ <b>{hud.score.toLocaleString()}</b></span><span className="combo">×{hud.combo}</span><span className="lives">{Array.from({ length: STARTING_LIVES }, (_, index) => <i key={index} className={index < hud.lives ? '' : 'lost'}>♥</i>)}</span><span>◷ <b>{formatTime(hud.secondsLeft)}</b></span></header>
     <div className="chapter-chip">{runMode === 'focus' ? 'Focus Training' : runMode === 'daily' ? 'Daily Challenge' : runMode === 'dojo' ? 'Dojo Mode' : chapter.title}</div>
     <section className={`question question--${hud.mode}`} aria-live="polite"><p>{hud.promptLabel}</p><h2 lang={hud.mode === 'meaning-japanese' ? 'en' : 'ja'}>{hud.prompt}</h2>{hud.promptReading && <small>{hud.promptReading}</small>}</section>
-    {runMode === 'chapter' && <aside className="battle-opponent" aria-live="polite"><div className="battle-opponent__portrait"><img src={castArtwork[chapter.opponent.id]} alt={chapter.opponent.name} /></div><div className="battle-opponent__bubble"><span>{chapter.opponent.name}</span><small>{chapter.opponent.title}</small><p>{opponentLine}</p></div></aside>}
-    {feedback && <div className={`feedback feedback--${feedback.type}`}>{feedback.message}</div>}{showCompanion && <CompanionMascot key={`${companionReaction.kind}-${companionReaction.cue}`} reaction={companionReaction} />}<Mascot {...mascot} />
+    {runMode === 'chapter' && opponentLine && <aside key={opponentLine} className="battle-opponent" aria-live="polite"><div className="battle-opponent__portrait"><img src={castArtwork[chapter.opponent.id]} alt={chapter.opponent.name} /></div><div className="battle-opponent__bubble"><span>{chapter.opponent.name}</span><small>{chapter.opponent.title}</small><p>{opponentLine}</p></div></aside>}
+    {feedback && <div className={`feedback feedback--${feedback.type}`}>{feedback.type === 'correct' ? <><span lang="ja">正解</span><small>CORRECT</small></> : feedback.message}</div>}{showCompanion && <CompanionMascot key={`${companionReaction.kind}-${companionReaction.cue}`} reaction={companionReaction} />}<Mascot {...mascot} />
   </main>
 }
 
