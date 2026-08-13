@@ -61,19 +61,19 @@ button:disabled { cursor: not-allowed; }
 .feedback { position: absolute; z-index: 80; left: 50%; top: 48%; transform: translate(-50%, -50%); border-radius: 999px; padding: 12px 22px; color: white; font-weight: 800; letter-spacing: .12em; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
 .feedback--correct { background: #e4513d; }
 .feedback--incorrect, .feedback--missed { background: #515655; }
-.battle-opponent { position: absolute; z-index: 63; top: max(180px, calc(164px + env(safe-area-inset-top))); right: 8px; display: grid; grid-template-columns: 68px minmax(0, 150px); align-items: center; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(49,39,25,.1)); }
+.battle-opponent { position: absolute; z-index: 63; top: max(245px, calc(225px + env(safe-area-inset-top))); right: 8px; display: grid; grid-template-columns: 68px minmax(0, 150px); align-items: center; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(49,39,25,.1)); }
 .battle-opponent__portrait { position: relative; z-index: 2; width: 72px; height: 72px; overflow: hidden; border: 2px solid #c6a15b; border-radius: 50%; background: #f3ead7; }
-.battle-opponent__portrait img { width: 142%; height: 142%; margin: -8% 0 0 -21%; object-fit: contain; object-position: center top; }
+.battle-opponent__portrait img { position: absolute; top: -5px; left: 50%; width: 225%; height: auto; transform: translateX(-50%); }
 .battle-opponent__bubble { min-height: 78px; margin-left: -8px; padding: 10px 10px 9px 17px; border: 1px solid rgba(198,161,91,.48); border-radius: 8px 16px 16px 8px; background: rgba(255,253,248,.94); backdrop-filter: blur(8px); }
 .battle-opponent__bubble span, .battle-opponent__bubble small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .battle-opponent__bubble span { color: #9e6f22; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
 .battle-opponent__bubble small { margin-top: 1px; color: #9a8c78; font-size: 7px; }
 .battle-opponent__bubble p { margin: 5px 0 0; font-family: 'Shippori Mincho', serif; font-size: 10px; line-height: 1.3; }
-.mascot { position: absolute; z-index: 65; right: -8px; bottom: max(5px, env(safe-area-inset-bottom)); width: 224px; height: 224px; pointer-events: none; transform-origin: 70% 100%; transition: transform 70ms ease-out; overflow: hidden; }
-.mascot--track { transform: rotate(var(--mascot-angle, -3deg)) translateX(-5px); }
+.mascot { position: absolute; z-index: 65; left: 50%; bottom: max(5px, env(safe-area-inset-bottom)); width: 224px; height: 224px; pointer-events: none; transform: translateX(-50%); transform-origin: 50% 100%; transition: transform 70ms ease-out; overflow: hidden; }
+.mascot--track { transform: translateX(-50%) rotate(var(--mascot-angle, -3deg)); }
 .mascot--slash { animation: mascotSlash .42s ease-out; }
 .mascot__sprite { width: 100%; height: 100%; background-repeat: no-repeat; background-size: 2000% 100%; image-rendering: pixelated; transform-origin: center; }
-@keyframes mascotSlash { 38% { transform: translate(-13px,-7px) rotate(-7deg) scale(1.055); } 100% { transform: none; } }
+@keyframes mascotSlash { 38% { transform: translateX(-50%) translateY(-7px) rotate(-7deg) scale(1.055); } 100% { transform: translateX(-50%); } }
 .companion-portrait { width: 190px; height: 190px; overflow: hidden; pointer-events: none; }
 .companion-portrait > div { width: 100%; height: 100%; background-repeat: no-repeat; background-size: 2000% 100%; image-rendering: pixelated; }
 .companion-mascot { position: absolute; z-index: 64; left: -24px; bottom: max(4px, env(safe-area-inset-bottom)); width: 166px; height: 166px; transform-origin: 25% 100%; filter: drop-shadow(0 8px 10px rgba(73,55,35,.08)); }
@@ -214,4 +214,5 @@ button:disabled { cursor: not-allowed; }
 @media (max-height: 760px) { .chapter-node { min-height: 90px; padding-block: 10px; } .chapter-list { margin-top: 15px; gap: 8px; } .chapter-node em { display: none; } .review-card-large { min-height: 310px; } }
 @media (max-height: 700px) { .level-screen > header { margin-block: 5px 12px; } .level-list { gap: 6px; } .level-list button { min-height: 67px; } .level-list button > b { width: 50px; height: 50px; } }
 @media (max-width: 360px) { .companion-mascot { left: -30px; width: 150px; height: 150px; } .dialogue-screen { padding-inline: max(16px, env(safe-area-inset-left)); } .dialogue-box { padding-inline: 18px; } }
+@media (orientation: landscape) and (max-height: 520px) { .question { right: 235px; } .question h2 { font-size: clamp(48px, 13vh, 70px); } .question--meaning-japanese h2 { font-size: clamp(30px, 9vh, 44px); } .battle-opponent { top: max(102px, calc(84px + env(safe-area-inset-top))); } .mascot { width: 180px; height: 180px; } .companion-mascot { width: 140px; height: 140px; } }
 @media (prefers-reduced-motion: reduce) { .dialogue-art, .companion-mascot, .mascot--slash { animation: none; } .mascot { transition: none; } }
