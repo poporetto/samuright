@@ -5,7 +5,7 @@ export type VocabularyWord = {
 }
 
 export type JlptLevel = 'N5' | 'N4' | 'N3' | 'N2' | 'N1'
-export type RunMode = 'chapter' | 'focus' | 'daily'
+export type RunMode = 'chapter' | 'dojo' | 'focus' | 'daily'
 
 export type RoundSummary = {
   score: number

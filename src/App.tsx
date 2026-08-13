@@ -20,6 +20,23 @@ const COMPANION_FRAME_COUNT = 20
 const MASCOT_SLASH_RESET_MS = 440
 const renDialogueArtwork = `${import.meta.env.BASE_URL}assets/characters/ren-dialogue-art-v1.webp`
 const hanaDialogueArtwork = `${import.meta.env.BASE_URL}assets/characters/hana-dialogue-pouch-art-v2.webp`
+const castArtwork: Record<string, string> = {
+  'iwao-jubei': `${import.meta.env.BASE_URL}assets/characters/cast/iwao-jubei.webp`,
+  saburo: `${import.meta.env.BASE_URL}assets/characters/cast/saburo.webp`,
+  'mizuno-kichiro': `${import.meta.env.BASE_URL}assets/characters/cast/mizuno-kichiro.webp`,
+}
+const speakerArtwork: Partial<Record<string, string>> = {
+  REN: renDialogueArtwork,
+  HANA: hanaDialogueArtwork,
+  JŪBEI: castArtwork['iwao-jubei'],
+  SABURŌ: castArtwork.saburo,
+  KICHIRŌ: castArtwork['mizuno-kichiro'],
+}
+const chapterBackgrounds: Record<number, string> = {
+  1: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-1-eastern-road-v1.webp`,
+  2: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-2-river-crossing-v1.webp`,
+  3: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-3-lantern-town-v1.webp`,
+}
 
 const loadProgress = (level: JlptLevel): Progress => {
   try {
@@ -123,11 +140,11 @@ function Mascot({ state, dx = 0, dy = 0 }: { state: 'idle' | 'track' | 'slash'; 
   </div>
 }
 
-function StartScreen({ sound, setSound, onJourney }: { sound: boolean; setSound: (value: boolean) => void; onJourney: () => void }) {
+function StartScreen({ sound, setSound, onStory, onDojo }: { sound: boolean; setSound: (value: boolean) => void; onStory: () => void; onDojo: () => void }) {
   return <main className="screen start-screen">
     <button className="icon-button sound-button" onClick={() => setSound(!sound)} aria-label={sound ? 'Mute sound' : 'Enable sound'}>{sound ? '◖))' : '◖×'}</button>
     <div className="wash wash--blue" /><div className="brand">SAMURIGHT</div>
-    <section className="start-copy"><p className="eyebrow">A journey through words.</p><h1 lang="ja">旅</h1><p className="translation">the journey</p><button className="primary-button" onClick={onJourney}>BEGIN JOURNEY</button><p className="swipe-hint"><span>↔</span> Learn by the blade</p></section>
+    <section className="start-copy"><p className="eyebrow">A journey through words.</p><h1 lang="ja">旅</h1><p className="translation">the journey</p><div className="mode-actions"><button className="primary-button" onClick={onStory}>STORY MODE</button><button className="dojo-button" onClick={onDojo}><span>DOJO MODE</span><small>Quick training · High score</small></button></div><p className="swipe-hint"><span>↔</span> Learn by the blade</p></section>
     <div className="hero-mascot" aria-hidden="true"><div style={{ backgroundImage: `url(${mascotAnimation})` }} /></div>
   </main>
 }
@@ -179,9 +196,11 @@ function DialogueScreen({ chapter, lines, onContinue }: { chapter: Chapter; line
   const next = () => line < lines.length - 1 ? setLine(line + 1) : onContinue()
   const activeLine = lines[line]
   const speaker = activeLine.speaker.toLowerCase()
-  const artwork = activeLine.speaker === 'HANA' ? hanaDialogueArtwork : renDialogueArtwork
+  const artwork = speakerArtwork[activeLine.speaker] ?? renDialogueArtwork
   return <main className="screen dialogue-screen">
-    <div className="wash wash--blue" />
+    <div className="dialogue-background" aria-hidden="true">
+      <img src={chapterBackgrounds[chapter.number]} alt="" draggable="false" />
+    </div>
     <header className="dialogue-heading"><p className="eyebrow">CHAPTER {chapter.number}</p><h1>{chapter.title}</h1><p className="chapter-japanese" lang="ja">{chapter.japaneseTitle}</p></header>
     <div key={`${speaker}-${line}`} className={`dialogue-art dialogue-art--${speaker}`} aria-hidden="true">
       <img src={artwork} alt="" draggable="false" />
@@ -198,11 +217,13 @@ function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onC
   const [hud, setHud] = useState(initialHud); const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [mascot, setMascot] = useState<{ state: 'idle' | 'track' | 'slash'; dx?: number; dy?: number }>({ state: 'idle' })
   const [companionReaction, setCompanionReaction] = useState<CompanionReaction>({ kind: 'idle', cue: 0 })
+  const [opponentLine, setOpponentLine] = useState(chapter.opponent.opening)
   useEffect(() => {
     correctCheerCount.current = 0
     const offHud = gameEvents.on('hud', setHud)
     const offFeedback = gameEvents.on('feedback', (value) => {
       setFeedback(value); window.setTimeout(() => setFeedback(null), 520)
+      if (runMode === 'chapter') setOpponentLine(value.type === 'correct' ? chapter.opponent.pressured : chapter.opponent.counter)
       if (!companionMet) return
 
       if (companionTimer.current !== null) {
@@ -238,11 +259,12 @@ function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onC
     })
     if (host.current) game.current = createGame(host.current, sound, words, profile, runMode)
     return () => { offHud(); offFeedback(); offComplete(); offMascot(); if (companionTimer.current !== null) window.clearTimeout(companionTimer.current); if (mascotTimer.current !== null) window.clearTimeout(mascotTimer.current); game.current?.destroy(true); game.current = null }
-  }, [companionMet, onComplete, profile, runMode, sound, words])
+  }, [chapter.opponent.counter, chapter.opponent.pressured, companionMet, onComplete, profile, runMode, sound, words])
   return <main className="screen game-screen"><div ref={host} className="game-canvas" />
     <header className="hud"><span>✦ <b>{hud.score.toLocaleString()}</b></span><span className="combo">×{hud.combo}</span><span className="lives">{Array.from({ length: STARTING_LIVES }, (_, index) => <i key={index} className={index < hud.lives ? '' : 'lost'}>♥</i>)}</span><span>◷ <b>{formatTime(hud.secondsLeft)}</b></span></header>
-    <div className="chapter-chip">{runMode === 'focus' ? 'Focus Training' : runMode === 'daily' ? 'Daily Challenge' : chapter.title}</div>
+    <div className="chapter-chip">{runMode === 'focus' ? 'Focus Training' : runMode === 'daily' ? 'Daily Challenge' : runMode === 'dojo' ? 'Dojo Mode' : chapter.title}</div>
     <section className={`question question--${hud.mode}`} aria-live="polite"><p>{hud.promptLabel}</p><h2 lang={hud.mode === 'meaning-japanese' ? 'en' : 'ja'}>{hud.prompt}</h2>{hud.promptReading && <small>{hud.promptReading}</small>}</section>
+    {runMode === 'chapter' && <aside className="battle-opponent" aria-live="polite"><div className="battle-opponent__portrait"><img src={castArtwork[chapter.opponent.id]} alt={chapter.opponent.name} /></div><div className="battle-opponent__bubble"><span>{chapter.opponent.name}</span><small>{chapter.opponent.title}</small><p>{opponentLine}</p></div></aside>}
     {feedback && <div className={`feedback feedback--${feedback.type}`}>{feedback.message}</div>}{companionMet && <CompanionMascot key={`${companionReaction.kind}-${companionReaction.cue}`} reaction={companionReaction} />}<Mascot {...mascot} />
   </main>
 }
@@ -258,7 +280,7 @@ function WordbookScreen({ profile, words, level, onBack }: { profile: LearningPr
 }
 
 function HistoryScreen({ sessions, chapters, onBack }: { sessions: SessionRecord[]; chapters: Chapter[]; onBack: () => void }) {
-  return <main className="screen library-screen"><SubHeader title="Session History" onBack={onBack} /><section className="session-list">{sessions.length ? sessions.map((session) => <article key={session.id}><span>{session.jlptLevel ? `${session.jlptLevel} · ` : ''}{session.mode === 'focus' ? 'FOCUS' : session.mode === 'daily' ? 'DAILY' : chapters.find((c) => c.id === session.chapterId)?.title ?? 'Chapter'}</span><strong>{session.score.toLocaleString()}</strong><b>{session.accuracy}%</b><small>{new Date(session.date).toLocaleDateString()}</small></article>) : <p className="empty-state">Complete a round to begin your training record.</p>}</section></main>
+  return <main className="screen library-screen"><SubHeader title="Session History" onBack={onBack} /><section className="session-list">{sessions.length ? sessions.map((session) => <article key={session.id}><span>{session.jlptLevel ? `${session.jlptLevel} · ` : ''}{session.mode === 'focus' ? 'FOCUS' : session.mode === 'daily' ? 'DAILY' : session.mode === 'dojo' ? 'DOJO' : chapters.find((c) => c.id === session.chapterId)?.title ?? 'Chapter'}</span><strong>{session.score.toLocaleString()}</strong><b>{session.accuracy}%</b><small>{new Date(session.date).toLocaleDateString()}</small></article>) : <p className="empty-state">Complete a round to begin your training record.</p>}</section></main>
 }
 
 function AchievementsScreen({ player, onBack, onHistory }: { player: PlayerProgression; onBack: () => void; onHistory: () => void }) {
@@ -280,12 +302,12 @@ function ResultsScreen({ chapter, result, passed, earnedXp, newAchievements, pla
   const accuracy = result.attempted ? Math.round(result.correct / result.attempted * 100) : 0
   const review = uniqueWords(result.incorrect).slice(0, 4)
   const rank = rankForXp(player.xp)
-  return <main className="screen results-screen"><div className="brand brand--small">SAMURIGHT</div><p className="eyebrow">{result.mode === 'daily' ? 'DAILY CHALLENGE COMPLETE' : result.mode === 'focus' ? 'FOCUS TRAINING' : passed ? `CHAPTER ${chapter.number} CLEARED` : `CHAPTER ${chapter.number} · KEEP TRAINING`}</p><h1 className="final-score">{result.score.toLocaleString()}</h1><p className="score-label">FINAL SCORE</p>
+  return <main className="screen results-screen"><div className="brand brand--small">SAMURIGHT</div><p className="eyebrow">{result.mode === 'daily' ? 'DAILY CHALLENGE COMPLETE' : result.mode === 'dojo' ? 'DOJO TRAINING COMPLETE' : result.mode === 'focus' ? 'FOCUS TRAINING' : passed ? `CHAPTER ${chapter.number} CLEARED` : `CHAPTER ${chapter.number} · KEEP TRAINING`}</p><h1 className="final-score">{result.score.toLocaleString()}</h1><p className="score-label">FINAL SCORE</p>
     <div className="stats"><div><small>Accuracy</small><strong>{accuracy}%</strong></div><div><small>Best Combo</small><strong>{result.bestCombo}</strong></div><div><small>Correct</small><strong>{result.correct}/{result.attempted}</strong></div></div>
     <section className="review"><h2>Review these words</h2>{review.length ? review.map((word) => <div className="review-row" key={word.japanese}><span>!</span><b lang="ja">{word.japanese}</b><small>{word.meaning}</small></div>) : <p className="perfect">Perfect round. Your path is sharp.</p>}</section>
     <section className="reward-card"><span><b>+{earnedXp} XP</b><small>RANK {rank.level} · {rank.title}</small></span><i><em style={{ width: `${rank.percent}%` }} /></i><strong>🔥 {player.streak} day streak</strong></section>
     {newAchievements.map((id) => { const crest = ACHIEVEMENTS.find((item) => item.id === id); return crest ? <section className="achievement-toast" key={id}><b lang="ja">{crest.japanese}</b><span><small>NEW CREST</small><strong>{crest.title}</strong></span></section> : null })}
-    <section className="story-card"><span>REN · {result.mode === 'daily' ? 'DAILY CHALLENGE' : result.mode === 'focus' ? 'FOCUS TRAINING' : chapter.title.toUpperCase()}</span><p>{result.mode === 'daily' ? 'A little training each day keeps the blade bright.' : result.mode === 'focus' ? 'Weak points become strengths when we face them directly.' : passed ? chapter.complete : 'Reach 70% accuracy to clear this road. We will try again.'}</p></section>
+    <section className="story-card"><span>REN · {result.mode === 'daily' ? 'DAILY CHALLENGE' : result.mode === 'dojo' ? 'DOJO MODE' : result.mode === 'focus' ? 'FOCUS TRAINING' : chapter.title.toUpperCase()}</span><p>{result.mode === 'daily' ? 'A little training each day keeps the blade bright.' : result.mode === 'dojo' ? 'The dojo sharpens speed, accuracy, and resolve.' : result.mode === 'focus' ? 'Weak points become strengths when we face them directly.' : passed ? chapter.complete : 'Reach 70% accuracy to clear this road. We will try again.'}</p></section>
     <div className="result-actions">{review.length > 0 && <button className="secondary-button" onClick={onReview}>REVIEW {review.length}</button>}<button className="primary-button" onClick={onJourney}>CONTINUE</button>{result.mode !== 'daily' && <button className="text-button" onClick={onReplay}>{result.mode === 'focus' ? 'Replay focus training' : 'Replay chapter'}</button>}</div>
   </main>
 }
@@ -322,6 +344,7 @@ export default function App() {
     setRunMode('focus'); setReviewWords(weak); setResult(null); setScreen('game')
   }
   const startDaily = () => { setRunMode('daily'); setReviewWords(dailyDeck(vocabulary, jlptLevel)); setResult(null); setScreen('game') }
+  const startDojo = () => { setRunMode('dojo'); setReviewWords(vocabulary); setResult(null); setScreen('game') }
   const complete = useCallback((summary: RoundSummary) => {
     const accuracy = summary.attempted ? Math.round(summary.correct / summary.attempted * 100) : 0
     const session: SessionRecord = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, chapterId: chapter.id, score: summary.score, accuracy, date: Date.now(), mode: summary.mode, jlptLevel }
@@ -335,11 +358,11 @@ export default function App() {
     setScreen('results')
   }, [chapter, chapters.length, jlptLevel])
   const resetAll = () => { setProgress(defaultProgress); setLearning(emptyProfile()); setPlayer(emptyProgression()); setResult(null); setReviewWords([]); localStorage.removeItem('samuright-progress'); JLPT_LEVELS.forEach((level) => localStorage.removeItem(`samuright-progress-${level.toLowerCase()}`)); localStorage.removeItem('samuright-learning-v1'); localStorage.removeItem('samuright-player-v1'); localStorage.removeItem('samuright-jlpt-level'); setJlptLevel('N5'); setChapter(getChapters('N5')[0]); setScreen('start') }
-  if (screen === 'start') return <StartScreen sound={sound} setSound={setSound} onJourney={() => setScreen('level')} />
+  if (screen === 'start') return <StartScreen sound={sound} setSound={setSound} onStory={() => setScreen('level')} onDojo={startDojo} />
   if (screen === 'level') return <LevelScreen selected={jlptLevel} onSelect={chooseLevel} onBack={() => setScreen('start')} />
   if (screen === 'journey') return <JourneyScreen progress={progress} profile={learning} player={player} level={jlptLevel} chapters={chapters} words={vocabulary} onChapter={chooseChapter} onFocus={startFocus} onDaily={startDaily} onOpen={setScreen} />
   if (screen === 'dialogue') return <DialogueScreen chapter={chapter} lines={chapter.intro} onContinue={startRound} />
-  if (screen === 'results' && result) return <ResultsScreen chapter={chapter} result={result} passed={result.mode !== 'chapter' || (result.attempted ? result.correct / result.attempted >= .7 : false)} earnedXp={earnedXp} newAchievements={newAchievements} player={player} onJourney={() => setScreen('journey')} onReplay={() => runMode === 'focus' ? startFocus() : runMode === 'daily' ? startDaily() : setScreen('dialogue')} onReview={() => setScreen('review')} />
+  if (screen === 'results' && result) return <ResultsScreen chapter={chapter} result={result} passed={result.mode !== 'chapter' || (result.attempted ? result.correct / result.attempted >= .7 : false)} earnedXp={earnedXp} newAchievements={newAchievements} player={player} onJourney={() => setScreen('journey')} onReplay={() => runMode === 'focus' ? startFocus() : runMode === 'daily' ? startDaily() : runMode === 'dojo' ? startDojo() : setScreen('dialogue')} onReview={() => setScreen('review')} />
   if (screen === 'review' && reviewWords.length) return <ReviewScreen words={reviewWords} onDone={() => setScreen('results')} />
   if (screen === 'wordbook') return <WordbookScreen profile={learning} words={vocabulary} level={jlptLevel} onBack={() => setScreen('journey')} />
   if (screen === 'history') return <HistoryScreen sessions={learning.sessions} chapters={chapters} onBack={() => setScreen('journey')} />

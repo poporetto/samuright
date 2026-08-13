@@ -13,6 +13,9 @@ type Target = {
   vx: number
   vy: number
   resolved: boolean
+  width: number
+  height: number
+  fontSize: number
 }
 
 type Point = { x: number; y: number }
@@ -228,15 +231,16 @@ export class GameScene extends Phaser.Scene {
       background.lineStyle(1.5, 0xc6a15b, 0.75)
       background.fillRoundedRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight, 20)
       background.strokeRoundedRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight, 20)
+      const fontSize = Phaser.Math.Clamp(w * 0.052, 20, 28)
       const label = this.add.text(0, 0, answer, {
-        fontFamily: 'Inter, system-ui, sans-serif', fontSize: `${Phaser.Math.Clamp(w * 0.052, 20, 28)}px`, color: '#202322',
+        fontFamily: 'Inter, system-ui, sans-serif', fontSize: `${fontSize}px`, color: '#202322',
       }).setOrigin(0.5)
       const container = this.add.container(x, y, [background, label]).setSize(cardWidth, cardHeight).setDepth(10)
       container.rotation = Phaser.Math.FloatBetween(-0.035, 0.035)
       const duration = Phaser.Math.Between(5200, 6900)
       const vx = (fromLeft ? 1 : -1) * (w + cardWidth * 2) / (duration / 1000)
       const vy = Phaser.Math.Between(-10, 14)
-      this.targets.push({ container, meaning: answer, correct: answer === answerFor(this.current, this.questionMode), vx, vy, resolved: false })
+      this.targets.push({ container, meaning: answer, correct: answer === answerFor(this.current, this.questionMode), vx, vy, resolved: false, width: cardWidth, height: cardHeight, fontSize })
     })
   }
 
@@ -328,7 +332,7 @@ export class GameScene extends Phaser.Scene {
       const paddedBounds = new Phaser.Geom.Rectangle(bounds.x - touchPadding, bounds.y - touchPadding, bounds.width + touchPadding * 2, bounds.height + touchPadding * 2)
       if (Phaser.Geom.Intersects.LineToRectangle(new Phaser.Geom.Line(a.x, a.y, b.x, b.y), paddedBounds)) {
         target.resolved = true
-        target.correct ? this.resolveCorrect(target) : this.resolveIncorrect(target)
+        target.correct ? this.resolveCorrect(target, a, b) : this.resolveIncorrect(target, a, b)
         break
       }
     }
@@ -342,13 +346,14 @@ export class GameScene extends Phaser.Scene {
       const paddedBounds = new Phaser.Geom.Rectangle(bounds.x - touchPadding, bounds.y - touchPadding, bounds.width + touchPadding * 2, bounds.height + touchPadding * 2)
       if (paddedBounds.contains(point.x, point.y)) {
         target.resolved = true
-        target.correct ? this.resolveCorrect(target) : this.resolveIncorrect(target)
+        const previous = this.trail[Math.max(0, this.trail.length - 2)] ?? { x: point.x - 40, y: point.y }
+        target.correct ? this.resolveCorrect(target, previous, point) : this.resolveIncorrect(target, previous, point)
         return
       }
     }
   }
 
-  private resolveCorrect(target: Target) {
+  private resolveCorrect(target: Target, slashStart: Point, slashEnd: Point) {
     if (this.finished || this.questionAdvanceQueued) return
     this.hitStopMs = 70
     this.attempted++
@@ -361,12 +366,12 @@ export class GameScene extends Phaser.Scene {
     this.burst(target.container.x, target.container.y, 0xe4513d)
     playCue('correct', this.soundEnabled)
     haptic(22)
-    this.destroyTarget(target)
+    this.sliceTarget(target, slashStart, slashEnd, 0xe4513d)
     this.emitHud()
     this.scheduleQuestionAdvance(460, () => this.nextQuestion())
   }
 
-  private resolveIncorrect(target: Target) {
+  private resolveIncorrect(target: Target, slashStart: Point, slashEnd: Point) {
     if (this.finished || this.questionAdvanceQueued) return
     this.hitStopMs = 95
     this.attempted++
@@ -378,7 +383,7 @@ export class GameScene extends Phaser.Scene {
     this.burst(target.container.x, target.container.y, 0x8c8f8d)
     playCue('incorrect', this.soundEnabled)
     haptic([32, 28, 45])
-    this.destroyTarget(target)
+    this.sliceTarget(target, slashStart, slashEnd, 0x626765)
     this.emitHud()
     this.scheduleQuestionAdvance(520, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
   }
@@ -403,6 +408,78 @@ export class GameScene extends Phaser.Scene {
   private destroyTarget(target: Target) {
     this.tweens.add({ targets: target.container, scale: 1.18, alpha: 0, duration: 220, ease: 'Quad.easeOut', onComplete: () => target.container.destroy() })
     this.targets = this.targets.filter((item) => item !== target)
+  }
+
+  private sliceTarget(target: Target, slashStart: Point, slashEnd: Point, accent: number) {
+    const { container, width, height, fontSize } = target
+    const x = container.x; const y = container.y; const rotation = container.rotation
+    const worldAngle = Math.atan2(slashEnd.y - slashStart.y, slashEnd.x - slashStart.x)
+    const localAngle = worldAngle - rotation
+    const tangent = { x: Math.cos(localAngle), y: Math.sin(localAngle) }
+    const normal = { x: -tangent.y, y: tangent.x }
+    const textureKeys: string[] = []
+    const halves: Phaser.GameObjects.Image[] = []
+    const size = Math.ceil(Math.hypot(width, height) * 2)
+
+    for (const side of [-1, 1]) {
+      const key = `slice-${this.time.now}-${Math.random()}-${side}`
+      const texture = this.textures.createCanvas(key, Math.ceil(width), Math.ceil(height))
+      if (!texture) continue
+      textureKeys.push(key)
+      const context = texture.context
+      const cx = width / 2; const cy = height / 2
+      context.save()
+      context.beginPath()
+      context.moveTo(cx - tangent.x * size, cy - tangent.y * size)
+      context.lineTo(cx + tangent.x * size, cy + tangent.y * size)
+      context.lineTo(cx + tangent.x * size + normal.x * size * side, cy + tangent.y * size + normal.y * size * side)
+      context.lineTo(cx - tangent.x * size + normal.x * size * side, cy - tangent.y * size + normal.y * size * side)
+      context.closePath(); context.clip()
+      context.fillStyle = 'rgba(255,255,255,.97)'
+      context.strokeStyle = 'rgba(198,161,91,.78)'
+      context.lineWidth = 1.5
+      context.beginPath(); context.roundRect(1, 1, width - 2, height - 2, 20); context.fill(); context.stroke()
+      context.fillStyle = '#202322'
+      context.font = `500 ${fontSize}px Inter, system-ui, sans-serif`
+      context.textAlign = 'center'; context.textBaseline = 'middle'
+      context.fillText(target.meaning, cx, cy)
+      context.restore(); texture.refresh()
+      halves.push(this.add.image(x, y, key).setRotation(rotation).setDepth(24))
+    }
+
+    container.destroy()
+    this.targets = this.targets.filter((item) => item !== target)
+    const separation = 24
+    halves.forEach((half, index) => {
+      const direction = index === 0 ? -1 : 1
+      this.tweens.add({
+        targets: half,
+        x: x + normal.x * separation * direction,
+        y: y + normal.y * separation * direction + 10,
+        rotation: rotation + direction * 0.055,
+        alpha: 0,
+        duration: 340,
+        ease: 'Quad.easeOut',
+        onComplete: () => {
+          half.destroy()
+          const key = textureKeys[index]
+          if (this.textures.exists(key)) this.textures.remove(key)
+        },
+      })
+    })
+    this.brushImpact(x, y, worldAngle, accent)
+  }
+
+  private brushImpact(x: number, y: number, angle: number, accent: number) {
+    const ink = this.add.graphics().setDepth(53).setPosition(x, y).setRotation(angle)
+    ink.lineStyle(16, 0x262321, 0.16); ink.lineBetween(-74, 0, 74, 0)
+    ink.lineStyle(9, accent, 0.88); ink.lineBetween(-70, 0, 58, 0)
+    ink.lineStyle(4, 0xfff4dc, 0.9); ink.lineBetween(-66, -1, 70, -1)
+    for (let i = 0; i < 7; i++) {
+      ink.fillStyle(i % 2 ? accent : 0x2c2926, Phaser.Math.FloatBetween(.25, .7))
+      ink.fillCircle(Phaser.Math.Between(46, 82), Phaser.Math.Between(-13, 13), Phaser.Math.Between(1, 3))
+    }
+    this.tweens.add({ targets: ink, alpha: 0, scaleX: 1.08, duration: 280, ease: 'Quad.easeOut', onComplete: () => ink.destroy() })
   }
 
   private clearTargets() {
@@ -443,12 +520,18 @@ export class GameScene extends Phaser.Scene {
   private drawTrail() {
     this.trailGraphic.clear()
     if (this.trail.length < 2) return
-    this.trailGraphic.lineStyle(10, 0xe4513d, 0.16)
-    this.trailGraphic.beginPath(); this.trailGraphic.moveTo(this.trail[0].x, this.trail[0].y)
-    this.trail.slice(1).forEach((point) => this.trailGraphic.lineTo(point.x, point.y)); this.trailGraphic.strokePath()
-    this.trailGraphic.lineStyle(3, 0xfff7df, 0.95)
-    this.trailGraphic.beginPath(); this.trailGraphic.moveTo(this.trail[0].x, this.trail[0].y)
-    this.trail.slice(1).forEach((point) => this.trailGraphic.lineTo(point.x, point.y)); this.trailGraphic.strokePath()
+    for (let index = 1; index < this.trail.length; index++) {
+      const a = this.trail[index - 1]; const b = this.trail[index]
+      const progress = index / (this.trail.length - 1)
+      const width = 3 + progress * 11
+      this.trailGraphic.lineStyle(width + 7, 0x24211f, .08 + progress * .1); this.trailGraphic.lineBetween(a.x, a.y, b.x, b.y)
+      this.trailGraphic.lineStyle(width, 0xe4513d, .3 + progress * .55); this.trailGraphic.lineBetween(a.x, a.y, b.x, b.y)
+      this.trailGraphic.lineStyle(Math.max(1.5, width * .2), 0xfff5dd, .72); this.trailGraphic.lineBetween(a.x, a.y - 1, b.x, b.y - 1)
+      if (index % 3 === 0) {
+        this.trailGraphic.lineStyle(1, 0x2d2925, .3)
+        this.trailGraphic.lineBetween(a.x, a.y + width * .42, b.x, b.y + width * .3)
+      }
+    }
   }
 
   private burst(x: number, y: number, color: number) {
