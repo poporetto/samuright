@@ -72,7 +72,7 @@ button:disabled { cursor: not-allowed; }
 .chapter-chip { position: absolute; z-index: 61; top: max(76px, calc(59px + env(safe-area-inset-top))); left: 50%; transform: translateX(-50%); color: #a77925; font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
 .game-screen--chapter .chapter-chip { top: max(112px, calc(94px + env(safe-area-inset-top))); }
 .game-screen--chapter .question { top: max(122px, calc(104px + env(safe-area-inset-top))); }
-.game-screen--chapter .battle-opponent { top: max(280px, calc(260px + env(safe-area-inset-top))); }
+.game-screen--chapter .battle-opponent { top: auto; }
 .question p { margin: 8px 0 0; font-size: 16px; }
 .question h2 { font-family: 'Shippori Mincho', 'Noto Sans JP', serif; font-size: clamp(56px, 17vw, 88px); line-height: 1; margin: 8px 0 0; }
 .question--meaning-japanese h2 { max-width: 330px; margin: 17px auto 0; font-family: Inter, sans-serif; font-size: clamp(34px, 10vw, 50px); line-height: 1.15; }
@@ -86,7 +86,7 @@ button:disabled { cursor: not-allowed; }
 .feedback--correct small { margin-top: 5px; font-size: 7px; letter-spacing: .17em; }
 @keyframes hankoStamp { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1.7); filter: blur(1px); } 58% { opacity: .92; transform: translate(-50%, -50%) rotate(-2deg) scale(.92); } 78% { transform: translate(-50%, -50%) rotate(-4deg) scale(1.04); } 100% { opacity: 1; transform: translate(-50%, -50%) rotate(-3deg) scale(1); filter: none; } }
 .feedback--incorrect, .feedback--missed { background: #515655; }
-.battle-opponent { position: absolute; z-index: 63; top: max(245px, calc(225px + env(safe-area-inset-top))); right: 8px; display: grid; grid-template-columns: 68px minmax(0, 150px); align-items: center; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(49,39,25,.1)); animation: opponentLineIn .2s ease-out both, opponentLineOut .28s ease-in 1.55s forwards; }
+.battle-opponent { position: absolute; z-index: 66; right: max(8px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: 68px minmax(0, 150px); align-items: center; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(49,39,25,.1)); animation: opponentLineIn .2s ease-out both, opponentLineOut .28s ease-in 1.55s forwards; }
 @keyframes opponentLineIn { from { opacity: 0; transform: translateX(12px) scale(.97); } }
 @keyframes opponentLineOut { to { opacity: 0; transform: translateX(8px) scale(.98); } }
 .battle-opponent__portrait { position: relative; z-index: 2; width: 72px; height: 72px; overflow: hidden; border: 2px solid #c6a15b; border-radius: 50%; background: #f3ead7; }
@@ -250,5 +250,5 @@ button:disabled { cursor: not-allowed; }
 @media (max-height: 760px) { .chapter-node { min-height: 90px; padding-block: 10px; } .chapter-list { margin-top: 15px; gap: 8px; } .chapter-node em { display: none; } .review-card-large { min-height: 310px; } }
 @media (max-height: 700px) { .level-screen > header { margin-block: 5px 12px; } .level-list { gap: 6px; } .level-list button { min-height: 67px; } .level-list button > b { width: 50px; height: 50px; } }
 @media (max-width: 360px) { .companion-mascot { left: -12px; width: 108px; height: 108px; } .dialogue-screen { padding-inline: max(16px, env(safe-area-inset-left)); } .dialogue-box { padding-inline: 18px; } }
-@media (orientation: landscape) and (max-height: 520px) { .question { right: 235px; } .question h2 { font-size: clamp(48px, 13vh, 70px); } .question--meaning-japanese h2 { font-size: clamp(30px, 9vh, 44px); } .battle-opponent { top: max(102px, calc(84px + env(safe-area-inset-top))); } .mascot { width: 180px; height: 180px; } .companion-mascot { width: 98px; height: 98px; } }
+@media (orientation: landscape) and (max-height: 520px) { .question { right: 235px; } .question h2 { font-size: clamp(48px, 13vh, 70px); } .question--meaning-japanese h2 { font-size: clamp(30px, 9vh, 44px); } .battle-opponent { right: max(8px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); } .mascot { width: 180px; height: 180px; } .companion-mascot { width: 98px; height: 98px; } }
 @media (prefers-reduced-motion: reduce) { .dialogue-art, .companion-mascot, .mascot--slash { animation: none; } .mascot { transition: none; } }
