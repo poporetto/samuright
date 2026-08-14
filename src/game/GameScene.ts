@@ -52,6 +52,8 @@ export class GameScene extends Phaser.Scene {
   private finished = false
   private questionAdvanceTimer: number | null = null
   private questionAdvanceQueued = false
+  private questionAdvanceDeadline = 0
+  private questionAdvanceCallback: (() => void) | null = null
   private soundEnabled = true
   private hitStopMs = 0
   private opponentId = ''
@@ -106,17 +108,28 @@ export class GameScene extends Phaser.Scene {
   private scheduleQuestionAdvance(delay: number, callback: () => void) {
     if (this.finished || this.questionAdvanceQueued) return
     this.questionAdvanceQueued = true
-    this.questionAdvanceTimer = window.setTimeout(() => {
-      this.questionAdvanceTimer = null
-      this.questionAdvanceQueued = false
-      if (!this.finished) callback()
-    }, delay)
+    this.questionAdvanceDeadline = performance.now() + delay
+    this.questionAdvanceCallback = callback
+    this.questionAdvanceTimer = window.setTimeout(() => this.runQuestionAdvance(), delay)
+  }
+
+  private runQuestionAdvance() {
+    if (!this.questionAdvanceQueued) return
+    const callback = this.questionAdvanceCallback
+    if (this.questionAdvanceTimer !== null) window.clearTimeout(this.questionAdvanceTimer)
+    this.questionAdvanceTimer = null
+    this.questionAdvanceQueued = false
+    this.questionAdvanceDeadline = 0
+    this.questionAdvanceCallback = null
+    if (!this.finished) callback?.()
   }
 
   private clearQuestionAdvanceTimer() {
     if (this.questionAdvanceTimer !== null) window.clearTimeout(this.questionAdvanceTimer)
     this.questionAdvanceTimer = null
     this.questionAdvanceQueued = false
+    this.questionAdvanceDeadline = 0
+    this.questionAdvanceCallback = null
   }
 
   private nativeTouchCanvas?: HTMLCanvasElement
@@ -187,6 +200,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
+    if (this.finished) return
+    // WebKit can defer a browser timer around a touch gesture. The scene clock
+    // independently completes the same queued transition on the next frame.
+    if (this.questionAdvanceQueued && performance.now() >= this.questionAdvanceDeadline) this.runQuestionAdvance()
     if (this.finished) return
     if (this.hitStopMs > 0) {
       this.hitStopMs -= delta
@@ -421,11 +438,11 @@ export class GameScene extends Phaser.Scene {
     this.lives--
     this.incorrect.push(this.current)
     this.recordOutcome(false)
+    this.emitHud()
+    this.scheduleQuestionAdvance(450, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
     this.feedback('missed', 'MISSED')
     playCue('missed', this.soundEnabled)
     haptic([18, 35, 18])
-    this.emitHud()
-    this.scheduleQuestionAdvance(450, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
   }
 
   private destroyTarget(target: Target) {
@@ -445,20 +462,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private roundedRectPath(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-    const r = Math.max(0, Math.min(radius, width / 2, height / 2))
-    context.moveTo(x + r, y)
-    context.lineTo(x + width - r, y)
-    context.quadraticCurveTo(x + width, y, x + width, y + r)
-    context.lineTo(x + width, y + height - r)
-    context.quadraticCurveTo(x + width, y + height, x + width - r, y + height)
-    context.lineTo(x + r, y + height)
-    context.quadraticCurveTo(x, y + height, x, y + height - r)
-    context.lineTo(x, y + r)
-    context.quadraticCurveTo(x, y, x + r, y)
-    context.closePath()
-  }
-
   private sliceTarget(target: Target, slashStart: Point, slashEnd: Point, accent: number) {
     const { container, width, height, fontSize } = target
     const x = container.x; const y = container.y; const rotation = container.rotation
@@ -466,45 +469,37 @@ export class GameScene extends Phaser.Scene {
     const localAngle = worldAngle - rotation
     const tangent = { x: Math.cos(localAngle), y: Math.sin(localAngle) }
     const normal = { x: -tangent.y, y: tangent.x }
-    const textureKeys: string[] = []
-    const halves: Phaser.GameObjects.Image[] = []
+    const halves: { card: Phaser.GameObjects.Container; maskShape: Phaser.GameObjects.Graphics }[] = []
     const size = Math.ceil(Math.hypot(width, height) * 2)
 
     for (const side of [-1, 1]) {
-      const key = `slice-${this.time.now}-${Math.random()}-${side}`
-      const texture = this.textures.createCanvas(key, Math.ceil(width), Math.ceil(height))
-      if (!texture) continue
-      textureKeys.push(key)
-      const context = texture.context
       const cx = width / 2; const cy = height / 2
-      context.save()
-      context.beginPath()
-      context.moveTo(cx - tangent.x * size, cy - tangent.y * size)
-      context.lineTo(cx + tangent.x * size, cy + tangent.y * size)
-      context.lineTo(cx + tangent.x * size + normal.x * size * side, cy + tangent.y * size + normal.y * size * side)
-      context.lineTo(cx - tangent.x * size + normal.x * size * side, cy - tangent.y * size + normal.y * size * side)
-      context.closePath(); context.clip()
-      context.fillStyle = 'rgba(255,255,255,.97)'
-      context.strokeStyle = 'rgba(198,161,91,.78)'
-      context.lineWidth = 1.5
-      context.beginPath()
-      this.roundedRectPath(context, 1, 1, width - 2, height - 2, 20)
-      context.fill(); context.stroke()
-      context.fillStyle = '#202322'
-      context.font = `500 ${fontSize}px Inter, system-ui, sans-serif`
-      context.textAlign = 'center'; context.textBaseline = 'middle'
-      context.fillText(target.meaning, cx, cy)
-      context.restore(); texture.refresh()
-      halves.push(this.add.image(x, y, key).setRotation(rotation).setDepth(24))
+      const background = this.add.graphics()
+      background.fillStyle(0xffffff, .97)
+      background.lineStyle(1.5, 0xc6a15b, .78)
+      background.fillRoundedRect(-width / 2, -height / 2, width, height, 20)
+      background.strokeRoundedRect(-width / 2, -height / 2, width, height, 20)
+      const label = this.add.text(0, 0, target.meaning, { fontFamily: 'Inter, system-ui, sans-serif', fontSize: `${fontSize}px`, color: '#202322' }).setOrigin(.5)
+      const card = this.add.container(x, y, [background, label]).setRotation(rotation).setDepth(24)
+      const maskShape = this.make.graphics({ x, y }).setRotation(rotation).setVisible(false)
+      maskShape.fillStyle(0xffffff)
+      maskShape.beginPath()
+      maskShape.moveTo(-tangent.x * size, -tangent.y * size)
+      maskShape.lineTo(tangent.x * size, tangent.y * size)
+      maskShape.lineTo(tangent.x * size + normal.x * size * side, tangent.y * size + normal.y * size * side)
+      maskShape.lineTo(-tangent.x * size + normal.x * size * side, -tangent.y * size + normal.y * size * side)
+      maskShape.closePath(); maskShape.fillPath()
+      card.setMask(maskShape.createGeometryMask())
+      halves.push({ card, maskShape })
     }
 
     container.destroy()
     this.targets = this.targets.filter((item) => item !== target)
     const separation = 24
-    halves.forEach((half, index) => {
+    halves.forEach(({ card, maskShape }, index) => {
       const direction = index === 0 ? -1 : 1
       this.tweens.add({
-        targets: half,
+        targets: [card, maskShape],
         x: x + normal.x * separation * direction,
         y: y + normal.y * separation * direction + 10,
         rotation: rotation + direction * 0.055,
@@ -512,9 +507,9 @@ export class GameScene extends Phaser.Scene {
         duration: 340,
         ease: 'Quad.easeOut',
         onComplete: () => {
-          half.destroy()
-          const key = textureKeys[index]
-          if (this.textures.exists(key)) this.textures.remove(key)
+          card.clearMask(true)
+          card.destroy()
+          maskShape.destroy()
         },
       })
     })
