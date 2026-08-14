@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type Phaser from 'phaser'
-import { getChapters, type Chapter, type DialogueLine } from './data/chapters'
+import { getChapters, type Chapter, type ChapterPart, type DialogueLine } from './data/chapters'
 import { createGame } from './game/createGame'
 import { gameEvents } from './game/events'
 import { ROUND_SECONDS, STARTING_LIVES, STORY_FOCUS, STORY_RESOLVE } from './game/rules'
@@ -9,9 +9,9 @@ import { emptyProfile, masteryLabel, updateMastery, wordKey, type LearningProfil
 import { JLPT_LEVELS, JLPT_VOCABULARY } from './data/jlptVocabulary'
 import { ACHIEVEMENTS, dateKey, emptyProgression, rankForXp, rewardRound, type PlayerProgression } from './game/progression'
 
-type Screen = 'start' | 'level' | 'journey' | 'dojo' | 'dialogue' | 'game' | 'epilogue' | 'results' | 'review' | 'wordbook' | 'history' | 'achievements' | 'settings'
-type Progress = { unlocked: number; completed: string[]; bestScores: Record<string, number>; companionMet: boolean }
-const defaultProgress: Progress = { unlocked: 1, completed: [], bestScores: {}, companionMet: false }
+type Screen = 'start' | 'level' | 'journey' | 'parts' | 'dojo' | 'dialogue' | 'game' | 'epilogue' | 'results' | 'review' | 'wordbook' | 'history' | 'achievements' | 'settings'
+type Progress = { unlocked: number; completed: string[]; completedParts: string[]; bestScores: Record<string, number>; companionMet: boolean }
+const defaultProgress: Progress = { unlocked: 1, completed: [], completedParts: [], bestScores: {}, companionMet: false }
 const initialHud: HudState = { score: 0, lives: STARTING_LIVES, combo: 0, secondsLeft: ROUND_SECONDS, current: { japanese: '食べる', reading: 'たべる', meaning: 'to eat' }, prompt: '食べる', promptLabel: 'Slash the meaning of', promptReading: 'たべる', mode: 'japanese-meaning', focus: STORY_FOCUS, maxFocus: STORY_FOCUS, resolve: STORY_RESOLVE, maxResolve: STORY_RESOLVE, battlePhase: 1 }
 const mascotAnimation = `${import.meta.env.BASE_URL}assets/mascot/ronin-pixel-hana-lines-v4-strip.png`
 const MASCOT_FRAME_COUNT = 20
@@ -46,10 +46,14 @@ const loadProgress = (level: JlptLevel): Progress => {
     const prefix = (id: string) => id.startsWith('n5-') ? id : `n5-${id}`
     const completed = level === 'N5' ? (saved.completed ?? []).map(prefix) : saved.completed ?? []
     const bestScores = level === 'N5' ? Object.fromEntries(Object.entries(saved.bestScores ?? {}).map(([id, score]) => [prefix(id), score])) : saved.bestScores ?? {}
+    const partPrefix = `${level.toLowerCase()}-eastern-road-`
+    const legacyChapterOneComplete = completed.some((id) => id.endsWith('-eastern-road'))
+    const migratedChapterOneParts = legacyChapterOneComplete ? [`${partPrefix}departure`, `${partPrefix}five-masters`, `${partPrefix}first-lesson`] : []
+    const completedParts = Array.from(new Set([...(saved.completedParts ?? []), ...migratedChapterOneParts]))
     // Existing players who already cleared Chapter 3 should immediately see
     // the newly-added Bamboo Dojo rather than having to replay old content.
     const clearedLanternTown = completed.some((id) => id.endsWith('-lantern-town'))
-    return { ...defaultProgress, ...saved, completed, bestScores, unlocked: clearedLanternTown ? Math.max(saved.unlocked ?? 1, 4) : saved.unlocked ?? 1 }
+    return { ...defaultProgress, ...saved, completed, completedParts, bestScores, unlocked: clearedLanternTown ? Math.max(saved.unlocked ?? 1, 4) : saved.unlocked ?? 1 }
   }
   catch { return defaultProgress }
 }
@@ -192,10 +196,11 @@ function JourneyScreen({ progress, profile, player, level, chapters, words, onCh
       {chapters.map((chapter) => {
         const unlocked = chapter.number <= progress.unlocked
         const complete = progress.completed.includes(chapter.id)
+        const completedPartCount = chapter.parts?.filter((part) => progress.completedParts.includes(part.id)).length ?? 0
         return <button className={`chapter-node ${complete ? 'is-complete' : ''}`} disabled={!unlocked} onClick={() => onChapter(chapter)} key={chapter.id}>
           <span className="chapter-number">{complete ? '✓' : unlocked ? chapter.number : '◇'}</span>
           <span><small>CHAPTER {chapter.number}</small><strong>{chapter.title}</strong><i lang="ja">{chapter.japaneseTitle}</i><em>{chapter.description}</em></span>
-          {progress.bestScores[chapter.id] ? <b>{progress.bestScores[chapter.id].toLocaleString()}</b> : null}
+          {chapter.parts ? <b>{completedPartCount}/{chapter.parts.length} PARTS</b> : progress.bestScores[chapter.id] ? <b>{progress.bestScores[chapter.id].toLocaleString()}</b> : null}
         </button>
       })}
     </section>
@@ -203,6 +208,22 @@ function JourneyScreen({ progress, profile, player, level, chapters, words, onCh
     <nav className="learning-nav"><button onClick={() => onOpen('wordbook')}>WORD BOOK <b>{mastered}/{words.length}</b></button><button onClick={() => onOpen('achievements')}>CRESTS <b>{player.achievements.length}/6</b></button><button onClick={() => onOpen('settings')}>{level} · ⚙</button></nav>
     {weakCount > 0 && <button className="focus-cta" onClick={onFocus}><span>FOCUS TRAINING</span><b>{weakCount} weak words · 45 sec</b></button>}
     <PixelPortrait className="journey-mascot" />
+  </main>
+}
+
+function ChapterPartsScreen({ chapter, completedParts, onPart, onBack }: { chapter: Chapter; completedParts: string[]; onPart: (part: ChapterPart) => void; onBack: () => void }) {
+  const completeCount = chapter.parts?.filter((part) => completedParts.includes(part.id)).length ?? 0
+  return <main className="screen parts-screen"><SubHeader title={`Chapter ${chapter.number}`} onBack={onBack} />
+    <header className="parts-heading"><p className="eyebrow">{chapter.japaneseTitle}</p><h1>{chapter.title}</h1><p>{completeCount} of {chapter.parts?.length ?? 0} parts complete</p></header>
+    <section className="parts-list">{chapter.parts?.map((part, index) => {
+      const complete = completedParts.includes(part.id)
+      const unlocked = index === 0 || completedParts.includes(chapter.parts![index - 1].id)
+      return <button className={complete ? 'is-complete' : ''} disabled={!unlocked} onClick={() => onPart(part)} key={part.id}>
+        <span>{complete ? '✓' : unlocked ? ['I', 'II', 'III'][index] : '◇'}</span>
+        <div><small>PART {['I', 'II', 'III'][index]}</small><strong>{part.title}</strong><p>{part.description}</p><em>{part.words.length} words</em></div><b>›</b>
+      </button>
+    })}</section>
+    <PixelPortrait className="parts-mascot" pose={completeCount ? 1 : 0} />
   </main>
 }
 
@@ -247,7 +268,7 @@ function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onC
         opponentTimer.current = null
       }, duration)
     }
-    if (runMode === 'chapter') showOpponentLine(chapter.opponent.opening, 2800)
+    if (runMode === 'chapter' && !chapter.opponent.hidden) showOpponentLine(chapter.opponent.opening, 2800)
     const offHud = gameEvents.on('hud', setHud)
     const offFeedback = gameEvents.on('feedback', (value) => {
       setFeedback(value); window.setTimeout(() => setFeedback(null), 520)
@@ -294,10 +315,10 @@ function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onC
     return () => { offHud(); offFeedback(); offComplete(); offBattle(); offMascot(); if (companionTimer.current !== null) window.clearTimeout(companionTimer.current); if (mascotTimer.current !== null) window.clearTimeout(mascotTimer.current); if (opponentTimer.current !== null) window.clearTimeout(opponentTimer.current); if (battleTimer.current !== null) window.clearTimeout(battleTimer.current); game.current?.destroy(true); game.current = null }
   }, [chapter.opponent.counter, chapter.opponent.opening, chapter.opponent.pressured, masterEncounter, onComplete, profile, runMode, showCompanion, sound, words])
   return <main className={`screen game-screen game-screen--${runMode}`}><div ref={host} className="game-canvas" />
-    <header className="hud"><span>✦ <b>{hud.score.toLocaleString()}</b></span><span className="combo">×{hud.combo}</span><span className="hud-vitals"><small><b>FOCUS</b><i><em style={{ width: `${hud.focus / hud.maxFocus * 100}%` }} /></i></small>{runMode === 'chapter' && <small><b>{masterEncounter ? `P${hud.battlePhase}` : chapter.number === 1 ? 'PRACTICE' : 'ENCOUNTER'} · {chapter.opponent.name.toUpperCase()}</b><i><em className="resolve-fill" style={{ width: `${hud.resolve / hud.maxResolve * 100}%` }} /></i></small>}</span><span>◷ <b>{formatTime(hud.secondsLeft)}</b></span></header>
+    <header className="hud"><span>✦ <b>{hud.score.toLocaleString()}</b></span><span className="combo">×{hud.combo}</span><span className="hud-vitals"><small><b>FOCUS</b><i><em style={{ width: `${hud.focus / hud.maxFocus * 100}%` }} /></i></small>{runMode === 'chapter' && <small><b>{chapter.opponent.hidden ? 'PRACTICE' : `${masterEncounter ? `P${hud.battlePhase}` : chapter.number === 1 ? 'PRACTICE' : 'ENCOUNTER'} · ${chapter.opponent.name.toUpperCase()}`}</b><i><em className="resolve-fill" style={{ width: `${hud.resolve / hud.maxResolve * 100}%` }} /></i></small>}</span><span>◷ <b>{formatTime(hud.secondsLeft)}</b></span></header>
     <div className="chapter-chip">{runMode === 'focus' ? 'Focus Training' : runMode === 'daily' ? 'Daily Challenge' : runMode === 'dojo' ? 'Dojo Mode' : chapter.title}</div>
     <section className={`question question--${hud.mode}`} aria-live="polite"><p>{hud.promptLabel}</p><h2 lang={hud.mode === 'meaning-japanese' ? 'en' : 'ja'}>{hud.prompt}</h2>{hud.promptReading && <small>{hud.promptReading}</small>}</section>
-    {runMode === 'chapter' && opponentLine && <aside key={opponentLine} className="battle-opponent" aria-live="polite"><div className="battle-opponent__portrait"><img src={castArtwork[chapter.opponent.id]} alt={chapter.opponent.name} /></div><div className="battle-opponent__bubble"><span>{chapter.opponent.name}</span><small>{chapter.opponent.title}</small><p>{opponentLine}</p></div></aside>}
+    {runMode === 'chapter' && !chapter.opponent.hidden && opponentLine && <aside key={opponentLine} className="battle-opponent" aria-live="polite"><div className="battle-opponent__portrait"><img src={castArtwork[chapter.opponent.id]} alt={chapter.opponent.name} /></div><div className="battle-opponent__bubble"><span>{chapter.opponent.name}</span><small>{chapter.opponent.title}</small><p>{opponentLine}</p></div></aside>}
     {battleCue && <div key={battleCue.title} className="battle-cue" aria-live="assertive"><b>{battleCue.title}</b><span>{battleCue.message}</span></div>}
     {feedback && <div className={`feedback feedback--${feedback.type}`}>{feedback.type === 'correct' ? <><span lang="ja">正解</span><small>CORRECT</small></> : feedback.message}</div>}{showCompanion && <CompanionMascot key={`${companionReaction.kind}-${companionReaction.cue}`} reaction={companionReaction} />}<Mascot {...mascot} />
   </main>
@@ -361,25 +382,32 @@ export default function App() {
   const [jlptLevel, setJlptLevel] = useState<JlptLevel>(() => (localStorage.getItem('samuright-jlpt-level') as JlptLevel) || 'N5')
   const chapters = getChapters(jlptLevel); const vocabulary = JLPT_VOCABULARY[jlptLevel]
   const [chapter, setChapter] = useState(() => getChapters((localStorage.getItem('samuright-jlpt-level') as JlptLevel) || 'N5')[0]); const [result, setResult] = useState<RoundSummary | null>(null)
+  const [selectedPart, setSelectedPart] = useState<ChapterPart | null>(null)
   const [progress, setProgress] = useState<Progress>(() => loadProgress((localStorage.getItem('samuright-jlpt-level') as JlptLevel) || 'N5')); const [reviewWords, setReviewWords] = useState<VocabularyWord[]>([])
   const [learning, setLearning] = useState<LearningProfile>(loadLearning); const [runMode, setRunMode] = useState<RunMode>('chapter')
   const [player, setPlayer] = useState<PlayerProgression>(loadPlayerProgression); const [earnedXp, setEarnedXp] = useState(0); const [newAchievements, setNewAchievements] = useState<string[]>([])
+  const activeStory: Chapter = selectedPart ? { ...chapter, title: selectedPart.title, description: selectedPart.description, intro: selectedPart.intro, epilogue: selectedPart.epilogue, opponent: selectedPart.opponent, complete: selectedPart.complete, words: selectedPart.words } : chapter
   useEffect(() => { localStorage.setItem(`samuright-progress-${jlptLevel.toLowerCase()}`, JSON.stringify(progress)) }, [jlptLevel, progress])
   useEffect(() => { localStorage.setItem('samuright-learning-v1', JSON.stringify(learning)) }, [learning])
   useEffect(() => { localStorage.setItem('samuright-player-v1', JSON.stringify(player)) }, [player])
   const chooseLevel = (level: JlptLevel) => {
     localStorage.setItem('samuright-jlpt-level', level); setJlptLevel(level)
-    const nextChapters = getChapters(level); setChapter(nextChapters[0]); setProgress(loadProgress(level)); setResult(null); setReviewWords([]); setScreen('journey')
+    const nextChapters = getChapters(level); setChapter(nextChapters[0]); setSelectedPart(null); setProgress(loadProgress(level)); setResult(null); setReviewWords([]); setScreen('journey')
   }
-  const chooseChapter = (selected: Chapter) => { if (selected.number >= 2) setProgress((current) => ({ ...current, companionMet: true })); setRunMode('chapter'); setChapter(selected); setResult(null); setScreen('dialogue') }
+  const chooseChapter = (selected: Chapter) => {
+    if (selected.number >= 2) setProgress((current) => ({ ...current, companionMet: true }))
+    setRunMode('chapter'); setChapter(selected); setSelectedPart(null); setResult(null)
+    setScreen(selected.parts?.length ? 'parts' : 'dialogue')
+  }
+  const choosePart = (part: ChapterPart) => { setRunMode('chapter'); setSelectedPart(part); setResult(null); setScreen('dialogue') }
   const startRound = () => setScreen('game')
   const startFocus = () => {
     const weak = vocabulary.filter((word) => { const mastery = learning.mastery[wordKey(word)]; return mastery?.seen && mastery.level < 2 })
     if (!weak.length) return
-    setRunMode('focus'); setReviewWords(weak); setResult(null); setScreen('game')
+    setRunMode('focus'); setSelectedPart(null); setReviewWords(weak); setResult(null); setScreen('game')
   }
-  const startDaily = () => { setRunMode('daily'); setReviewWords(dailyDeck(vocabulary, jlptLevel)); setResult(null); setScreen('game') }
-  const startDojo = () => { setRunMode('dojo'); setReviewWords(vocabulary); setResult(null); setScreen('game') }
+  const startDaily = () => { setRunMode('daily'); setSelectedPart(null); setReviewWords(dailyDeck(vocabulary, jlptLevel)); setResult(null); setScreen('game') }
+  const startDojo = () => { setRunMode('dojo'); setSelectedPart(null); setReviewWords(vocabulary); setResult(null); setScreen('game') }
   const complete = useCallback((summary: RoundSummary) => {
     const accuracy = summary.attempted ? Math.round(summary.correct / summary.attempted * 100) : 0
     const session: SessionRecord = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, chapterId: chapter.id, score: summary.score, accuracy, date: Date.now(), mode: summary.mode, jlptLevel }
@@ -388,22 +416,28 @@ export default function App() {
     setResult(summary); setReviewWords(uniqueWords(summary.incorrect))
     if (summary.mode === 'chapter') setProgress((current) => {
       const passed = accuracy >= 70
-      return { ...current, unlocked: passed ? Math.max(current.unlocked, Math.min(chapters.length, chapter.number + 1)) : current.unlocked, completed: passed && !current.completed.includes(chapter.id) ? [...current.completed, chapter.id] : current.completed, bestScores: { ...current.bestScores, [chapter.id]: Math.max(current.bestScores[chapter.id] ?? 0, summary.score) } }
+      const scoreKey = selectedPart?.id ?? chapter.id
+      const completedParts = passed && selectedPart && !current.completedParts.includes(selectedPart.id) ? [...current.completedParts, selectedPart.id] : current.completedParts
+      const finishedChapter = !selectedPart || selectedPart.number === chapter.parts?.length
+      const completed = passed && finishedChapter && !current.completed.includes(chapter.id) ? [...current.completed, chapter.id] : current.completed
+      const unlocked = passed && finishedChapter ? Math.max(current.unlocked, Math.min(chapters.length, chapter.number + 1)) : current.unlocked
+      return { ...current, unlocked, completed, completedParts, bestScores: { ...current.bestScores, [scoreKey]: Math.max(current.bestScores[scoreKey] ?? 0, summary.score) } }
     })
     setScreen(summary.mode === 'chapter' && accuracy >= 70 ? 'epilogue' : 'results')
-  }, [chapter, chapters.length, jlptLevel])
-  const resetAll = () => { setProgress(defaultProgress); setLearning(emptyProfile()); setPlayer(emptyProgression()); setResult(null); setReviewWords([]); localStorage.removeItem('samuright-progress'); JLPT_LEVELS.forEach((level) => localStorage.removeItem(`samuright-progress-${level.toLowerCase()}`)); localStorage.removeItem('samuright-learning-v1'); localStorage.removeItem('samuright-player-v1'); localStorage.removeItem('samuright-jlpt-level'); setJlptLevel('N5'); setChapter(getChapters('N5')[0]); setScreen('start') }
+  }, [chapter, chapters.length, jlptLevel, selectedPart])
+  const resetAll = () => { setProgress(defaultProgress); setLearning(emptyProfile()); setPlayer(emptyProgression()); setResult(null); setReviewWords([]); setSelectedPart(null); localStorage.removeItem('samuright-progress'); JLPT_LEVELS.forEach((level) => localStorage.removeItem(`samuright-progress-${level.toLowerCase()}`)); localStorage.removeItem('samuright-learning-v1'); localStorage.removeItem('samuright-player-v1'); localStorage.removeItem('samuright-jlpt-level'); setJlptLevel('N5'); setChapter(getChapters('N5')[0]); setScreen('start') }
   if (screen === 'start') return <StartScreen sound={sound} setSound={setSound} onStory={() => setScreen('level')} onDojo={() => setScreen('dojo')} />
   if (screen === 'level') return <LevelScreen selected={jlptLevel} onSelect={chooseLevel} onBack={() => setScreen('start')} />
   if (screen === 'dojo') return <DojoScreen level={jlptLevel} onStart={startDojo} onBack={() => setScreen('start')} />
   if (screen === 'journey') return <JourneyScreen progress={progress} profile={learning} player={player} level={jlptLevel} chapters={chapters} words={vocabulary} onChapter={chooseChapter} onFocus={startFocus} onDaily={startDaily} onOpen={setScreen} />
-  if (screen === 'dialogue') return <DialogueScreen chapter={chapter} lines={chapter.intro} onContinue={startRound} />
-  if (screen === 'epilogue') return <DialogueScreen chapter={chapter} lines={chapter.epilogue} phase="EPILOGUE" onContinue={() => setScreen('results')} />
-  if (screen === 'results' && result) return <ResultsScreen chapter={chapter} result={result} passed={result.mode !== 'chapter' || (result.attempted ? result.correct / result.attempted >= .7 : false)} earnedXp={earnedXp} newAchievements={newAchievements} player={player} onJourney={() => setScreen('journey')} onReplay={() => runMode === 'focus' ? startFocus() : runMode === 'daily' ? startDaily() : runMode === 'dojo' ? startDojo() : setScreen('dialogue')} onReview={() => setScreen('review')} />
+  if (screen === 'parts') return <ChapterPartsScreen chapter={chapter} completedParts={progress.completedParts} onPart={choosePart} onBack={() => { setSelectedPart(null); setScreen('journey') }} />
+  if (screen === 'dialogue') return <DialogueScreen chapter={activeStory} lines={activeStory.intro} onContinue={startRound} />
+  if (screen === 'epilogue') return <DialogueScreen chapter={activeStory} lines={activeStory.epilogue} phase="EPILOGUE" onContinue={() => setScreen('results')} />
+  if (screen === 'results' && result) return <ResultsScreen chapter={activeStory} result={result} passed={result.mode !== 'chapter' || (result.attempted ? result.correct / result.attempted >= .7 : false)} earnedXp={earnedXp} newAchievements={newAchievements} player={player} onJourney={() => setScreen(selectedPart ? 'parts' : 'journey')} onReplay={() => runMode === 'focus' ? startFocus() : runMode === 'daily' ? startDaily() : runMode === 'dojo' ? startDojo() : setScreen('dialogue')} onReview={() => setScreen('review')} />
   if (screen === 'review' && reviewWords.length) return <ReviewScreen words={reviewWords} onDone={() => setScreen('results')} />
   if (screen === 'wordbook') return <WordbookScreen profile={learning} words={vocabulary} level={jlptLevel} onBack={() => setScreen('journey')} />
   if (screen === 'history') return <HistoryScreen sessions={learning.sessions} chapters={chapters} onBack={() => setScreen('journey')} />
   if (screen === 'achievements') return <AchievementsScreen player={player} onBack={() => setScreen('journey')} onHistory={() => setScreen('history')} />
   if (screen === 'settings') return <SettingsScreen level={jlptLevel} onChangeLevel={() => setScreen('level')} onBack={() => setScreen('journey')} onReset={resetAll} />
-  return <GameScreen sound={sound} chapter={chapter} words={runMode === 'chapter' ? chapter.words : reviewWords} profile={learning} runMode={runMode} companionMet={progress.companionMet} onComplete={complete} />
+  return <GameScreen sound={sound} chapter={activeStory} words={runMode === 'chapter' ? activeStory.words : reviewWords} profile={learning} runMode={runMode} companionMet={progress.companionMet} onComplete={complete} />
 }
