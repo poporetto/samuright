@@ -220,7 +220,7 @@ export class GameScene extends Phaser.Scene {
 
     const storyPressure = this.runMode === 'chapter' && this.masterEncounter ? this.battlePhase === 3 ? 1.18 : this.battlePhase === 2 ? 1.08 : 1 : 1
     const stillMindScale = this.stillMindMs > 0 ? .52 : 1
-    const speedScale = (1 + Math.min(this.elapsed / (this.roundSeconds * 1000), 1) * 1.15) * storyPressure * stillMindScale
+    const speedScale = (1 + Math.min(this.elapsed / (this.roundSeconds * 1000), 1) * .65) * storyPressure * stillMindScale
     const width = this.scale.width
     const height = this.scale.height
     for (const target of [...this.targets]) {
@@ -234,7 +234,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (this.questionElapsed > 6500 && this.targets.some((target) => target.correct && !target.resolved)) {
+    if (this.questionElapsed > 8500 && this.targets.some((target) => target.correct && !target.resolved)) {
       this.resolveMiss()
     }
     this.drawTrail()
@@ -274,7 +274,7 @@ export class GameScene extends Phaser.Scene {
       }).setOrigin(0.5)
       const container = this.add.container(x, y, [background, label]).setSize(cardWidth, cardHeight).setDepth(10)
       container.rotation = Phaser.Math.FloatBetween(-0.035, 0.035)
-      const duration = Phaser.Math.Between(5200, 6900)
+      const duration = Phaser.Math.Between(6500, 8200)
       const vx = (fromLeft ? 1 : -1) * (w + cardWidth * 2) / (duration / 1000)
       const vy = Phaser.Math.Between(-10, 14)
       this.targets.push({ container, meaning: answer, correct: answer === answerFor(this.current, this.questionMode), vx, vy, resolved: false, width: cardWidth, height: cardHeight, fontSize })
