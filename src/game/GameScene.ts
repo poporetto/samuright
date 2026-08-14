@@ -383,13 +383,15 @@ export class GameScene extends Phaser.Scene {
     if (this.runMode === 'chapter') this.updateBattlePhase()
     if (this.opponentId === 'iwao-jubei' && !this.stillMindUsed && this.combo >= 5) this.activateStillMind()
     this.recordOutcome(true)
+    // Queue progression before optional presentation effects. Older iOS Safari
+    // canvas implementations must never be able to strand a resolved question.
+    this.emitHud()
+    this.scheduleQuestionAdvance(460, () => this.runMode === 'chapter' && this.resolve <= 0 ? this.completeRound() : this.nextQuestion())
     this.feedback('correct', 'CORRECT')
     this.burst(target.container.x, target.container.y, 0xe4513d)
     playCue('correct', this.soundEnabled)
     haptic(22)
-    this.sliceTarget(target, slashStart, slashEnd, 0xe4513d)
-    this.emitHud()
-    this.scheduleQuestionAdvance(460, () => this.runMode === 'chapter' && this.resolve <= 0 ? this.completeRound() : this.nextQuestion())
+    this.safelySliceTarget(target, slashStart, slashEnd, 0xe4513d)
   }
 
   private resolveIncorrect(target: Target, slashStart: Point, slashEnd: Point) {
@@ -400,13 +402,13 @@ export class GameScene extends Phaser.Scene {
     this.lives--
     this.incorrect.push(this.current)
     this.recordOutcome(false)
+    this.emitHud()
+    this.scheduleQuestionAdvance(520, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
     this.feedback('incorrect', 'WRONG TARGET')
     this.burst(target.container.x, target.container.y, 0x8c8f8d)
     playCue('incorrect', this.soundEnabled)
     haptic([32, 28, 45])
-    this.sliceTarget(target, slashStart, slashEnd, 0x626765)
-    this.emitHud()
-    this.scheduleQuestionAdvance(520, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
+    this.safelySliceTarget(target, slashStart, slashEnd, 0x626765)
   }
 
   private resolveMiss() {
@@ -429,6 +431,32 @@ export class GameScene extends Phaser.Scene {
   private destroyTarget(target: Target) {
     this.tweens.add({ targets: target.container, scale: 1.18, alpha: 0, duration: 220, ease: 'Quad.easeOut', onComplete: () => target.container.destroy() })
     this.targets = this.targets.filter((item) => item !== target)
+  }
+
+  private safelySliceTarget(target: Target, slashStart: Point, slashEnd: Point, accent: number) {
+    try {
+      this.sliceTarget(target, slashStart, slashEnd, accent)
+    } catch (error) {
+      // The score and next-question timer are already committed. Fall back to
+      // removing the card if a device cannot render the decorative split.
+      console.warn('Falling back from sliced target effect', error)
+      if (target.container.active) target.container.destroy()
+      this.targets = this.targets.filter((item) => item !== target)
+    }
+  }
+
+  private roundedRectPath(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+    const r = Math.max(0, Math.min(radius, width / 2, height / 2))
+    context.moveTo(x + r, y)
+    context.lineTo(x + width - r, y)
+    context.quadraticCurveTo(x + width, y, x + width, y + r)
+    context.lineTo(x + width, y + height - r)
+    context.quadraticCurveTo(x + width, y + height, x + width - r, y + height)
+    context.lineTo(x + r, y + height)
+    context.quadraticCurveTo(x, y + height, x, y + height - r)
+    context.lineTo(x, y + r)
+    context.quadraticCurveTo(x, y, x + r, y)
+    context.closePath()
   }
 
   private sliceTarget(target: Target, slashStart: Point, slashEnd: Point, accent: number) {
@@ -459,7 +487,9 @@ export class GameScene extends Phaser.Scene {
       context.fillStyle = 'rgba(255,255,255,.97)'
       context.strokeStyle = 'rgba(198,161,91,.78)'
       context.lineWidth = 1.5
-      context.beginPath(); context.roundRect(1, 1, width - 2, height - 2, 20); context.fill(); context.stroke()
+      context.beginPath()
+      this.roundedRectPath(context, 1, 1, width - 2, height - 2, 20)
+      context.fill(); context.stroke()
       context.fillStyle = '#202322'
       context.font = `500 ${fontSize}px Inter, system-ui, sans-serif`
       context.textAlign = 'center'; context.textBaseline = 'middle'
