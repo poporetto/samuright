@@ -471,6 +471,10 @@ export class GameScene extends Phaser.Scene {
     const localAngle = worldAngle - rotation
     const tangent = { x: Math.cos(localAngle), y: Math.sin(localAngle) }
     const normal = { x: -tangent.y, y: tangent.x }
+    if (this.needsMaskFreeSlice()) {
+      this.sliceTargetWithoutMasks(target, normal, worldAngle, accent)
+      return
+    }
     const halves: { card: Phaser.GameObjects.Container; maskShape: Phaser.GameObjects.Graphics }[] = []
     const size = Math.ceil(Math.hypot(width, height) * 2)
 
@@ -513,6 +517,73 @@ export class GameScene extends Phaser.Scene {
           card.destroy()
           maskShape.destroy()
         },
+      })
+    })
+    this.brushImpact(x, y, worldAngle, accent)
+  }
+
+  private needsMaskFreeSlice() {
+    const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    const isiPadDesktopMode = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+    return isiOS || isiPadDesktopMode
+  }
+
+  /**
+   * Mobile Safari can silently drop GeometryMask output on Containers. These
+   * are two genuinely separate card fragments, so the effect needs no canvas
+   * textures, stencil masks, or browser-specific clipping support.
+   */
+  private sliceTargetWithoutMasks(target: Target, normal: Point, worldAngle: number, accent: number) {
+    const { container, width, height, fontSize } = target
+    const x = container.x; const y = container.y; const rotation = container.rotation
+    const characters = Array.from(target.meaning)
+    const midpoint = Math.max(1, Math.ceil(characters.length / 2))
+    const labels = [characters.slice(0, midpoint).join(''), characters.slice(midpoint).join('')]
+    const fragments: Phaser.GameObjects.Container[] = []
+
+    for (const side of [-1, 1]) {
+      const background = this.add.graphics()
+      const edgeTop = -height / 2
+      const edgeBottom = height / 2
+      background.fillStyle(0xffffff, .97)
+      background.lineStyle(1.5, 0xc6a15b, .82)
+      background.beginPath()
+      if (side < 0) {
+        background.moveTo(-width / 2, edgeTop)
+        background.lineTo(0, edgeTop)
+        background.lineTo(-4, -height * .18)
+        background.lineTo(3, height * .06)
+        background.lineTo(-2, edgeBottom)
+        background.lineTo(-width / 2, edgeBottom)
+      } else {
+        background.moveTo(0, edgeTop)
+        background.lineTo(width / 2, edgeTop)
+        background.lineTo(width / 2, edgeBottom)
+        background.lineTo(-2, edgeBottom)
+        background.lineTo(3, height * .06)
+        background.lineTo(-4, -height * .18)
+      }
+      background.closePath(); background.fillPath(); background.strokePath()
+      const index = side < 0 ? 0 : 1
+      const label = this.add.text(side * width * .25, 0, labels[index], {
+        fontFamily: 'Inter, system-ui, sans-serif', fontSize: `${Math.max(16, fontSize * .86)}px`, color: '#202322',
+      }).setOrigin(.5)
+      fragments.push(this.add.container(x, y, [background, label]).setRotation(rotation).setDepth(24))
+    }
+
+    container.destroy()
+    this.targets = this.targets.filter((item) => item !== target)
+    fragments.forEach((fragment, index) => {
+      const direction = index === 0 ? -1 : 1
+      this.tweens.add({
+        targets: fragment,
+        x: x + normal.x * 34 * direction,
+        y: y + normal.y * 34 * direction + 14,
+        rotation: rotation + direction * .075,
+        alpha: 0,
+        duration: 420,
+        ease: 'Quad.easeOut',
+        onComplete: () => fragment.destroy(),
       })
     })
     this.brushImpact(x, y, worldAngle, accent)
