@@ -20,6 +20,7 @@ export type BattleOpponent = {
   id: 'iwao-jubei' | 'saburo' | 'mizuno-kichiro'
   name: string
   title: string
+  masterEncounter?: boolean
   opening: string
   pressured: string
   counter: string

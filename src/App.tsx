@@ -230,6 +230,7 @@ function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onC
   const [opponentLine, setOpponentLine] = useState<string | null>(chapter.opponent.opening)
   const [battleCue, setBattleCue] = useState<{ title: string; message: string } | null>(null)
   const showCompanion = runMode === 'chapter' ? chapter.number >= 2 : companionMet
+  const masterEncounter = runMode === 'chapter' && chapter.opponent.masterEncounter === true
   useEffect(() => {
     correctCheerCount.current = 0
     const showOpponentLine = (line: string, duration = 1900) => {
@@ -244,7 +245,7 @@ function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onC
     const offHud = gameEvents.on('hud', setHud)
     const offFeedback = gameEvents.on('feedback', (value) => {
       setFeedback(value); window.setTimeout(() => setFeedback(null), 520)
-      if (runMode === 'chapter') showOpponentLine(value.type === 'correct' ? chapter.opponent.pressured : chapter.opponent.counter)
+      if (masterEncounter) showOpponentLine(value.type === 'correct' ? chapter.opponent.pressured : chapter.opponent.counter)
       if (!showCompanion) return
 
       if (companionTimer.current !== null) {
@@ -283,12 +284,12 @@ function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onC
         mascotTimer.current = null
       }, MASCOT_SLASH_RESET_MS)
     })
-    if (host.current) game.current = createGame(host.current, sound, words, profile, runMode, runMode === 'chapter' ? chapter.opponent.id : undefined)
+    if (host.current) game.current = createGame(host.current, sound, words, profile, runMode, runMode === 'chapter' ? chapter.opponent.id : undefined, masterEncounter)
     return () => { offHud(); offFeedback(); offComplete(); offBattle(); offMascot(); if (companionTimer.current !== null) window.clearTimeout(companionTimer.current); if (mascotTimer.current !== null) window.clearTimeout(mascotTimer.current); if (opponentTimer.current !== null) window.clearTimeout(opponentTimer.current); if (battleTimer.current !== null) window.clearTimeout(battleTimer.current); game.current?.destroy(true); game.current = null }
-  }, [chapter.opponent.counter, chapter.opponent.opening, chapter.opponent.pressured, onComplete, profile, runMode, showCompanion, sound, words])
+  }, [chapter.opponent.counter, chapter.opponent.opening, chapter.opponent.pressured, masterEncounter, onComplete, profile, runMode, showCompanion, sound, words])
   return <main className={`screen game-screen game-screen--${runMode}`}><div ref={host} className="game-canvas" />
     <header className="hud"><span>✦ <b>{hud.score.toLocaleString()}</b></span><span className="combo">×{hud.combo}</span><span className="lives">{Array.from({ length: hud.maxFocus }, (_, index) => <i key={index} className={index < hud.focus ? '' : 'lost'}>♥</i>)}</span><span>◷ <b>{formatTime(hud.secondsLeft)}</b></span></header>
-    {runMode === 'chapter' && <section className="duel-status"><span><small>FOCUS</small><i><em style={{ width: `${hud.focus / hud.maxFocus * 100}%` }} /></i></span><b>PHASE {hud.battlePhase}</b><span><small>{chapter.opponent.name.toUpperCase()} · RESOLVE</small><i><em style={{ width: `${hud.resolve / hud.maxResolve * 100}%` }} /></i></span></section>}
+    {runMode === 'chapter' && <section className="duel-status"><span><small>FOCUS</small><i><em style={{ width: `${hud.focus / hud.maxFocus * 100}%` }} /></i></span><b>{masterEncounter ? `PHASE ${hud.battlePhase}` : chapter.number === 1 ? 'PRACTICE' : 'ENCOUNTER'}</b><span><small>{chapter.opponent.name.toUpperCase()} · RESOLVE</small><i><em style={{ width: `${hud.resolve / hud.maxResolve * 100}%` }} /></i></span></section>}
     <div className="chapter-chip">{runMode === 'focus' ? 'Focus Training' : runMode === 'daily' ? 'Daily Challenge' : runMode === 'dojo' ? 'Dojo Mode' : chapter.title}</div>
     <section className={`question question--${hud.mode}`} aria-live="polite"><p>{hud.promptLabel}</p><h2 lang={hud.mode === 'meaning-japanese' ? 'en' : 'ja'}>{hud.prompt}</h2>{hud.promptReading && <small>{hud.promptReading}</small>}</section>
     {runMode === 'chapter' && opponentLine && <aside key={opponentLine} className="battle-opponent" aria-live="polite"><div className="battle-opponent__portrait"><img src={castArtwork[chapter.opponent.id]} alt={chapter.opponent.name} /></div><div className="battle-opponent__bubble"><span>{chapter.opponent.name}</span><small>{chapter.opponent.title}</small><p>{opponentLine}</p></div></aside>}

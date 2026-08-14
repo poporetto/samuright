@@ -57,18 +57,20 @@ export class GameScene extends Phaser.Scene {
   private soundEnabled = true
   private hitStopMs = 0
   private opponentId = ''
+  private masterEncounter = false
   private battlePhase: 1 | 2 | 3 = 1
   private stillMindMs = 0
   private stillMindUsed = false
 
   constructor() { super('game') }
 
-  init(data: { soundEnabled?: boolean; words?: VocabularyWord[]; profile?: LearningProfile; mode?: RunMode; opponentId?: string }) {
+  init(data: { soundEnabled?: boolean; words?: VocabularyWord[]; profile?: LearningProfile; mode?: RunMode; opponentId?: string; masterEncounter?: boolean }) {
     this.soundEnabled = data.soundEnabled ?? true
     this.wordPool = data.words?.length ? data.words : VOCABULARY
     this.learningProfile = data.profile ?? emptyProfile()
     this.runMode = data.mode ?? 'chapter'
     this.opponentId = data.opponentId ?? ''
+    this.masterEncounter = data.masterEncounter ?? false
     this.roundSeconds = this.runMode === 'chapter' ? 90 : this.runMode === 'focus' ? 45 : this.runMode === 'daily' ? 60 : ROUND_SECONDS
     this.maxFocus = this.runMode === 'chapter' ? STORY_FOCUS : STARTING_LIVES
     this.lives = this.maxFocus
@@ -216,7 +218,7 @@ export class GameScene extends Phaser.Scene {
     this.secondsLeft = Math.max(0, this.roundSeconds - Math.floor(this.elapsed / 1000))
     if (this.secondsLeft <= 0 || this.lives <= 0) return this.completeRound()
 
-    const storyPressure = this.runMode === 'chapter' ? this.battlePhase === 3 ? 1.18 : this.battlePhase === 2 ? 1.08 : 1 : 1
+    const storyPressure = this.runMode === 'chapter' && this.masterEncounter ? this.battlePhase === 3 ? 1.18 : this.battlePhase === 2 ? 1.08 : 1 : 1
     const stillMindScale = this.stillMindMs > 0 ? .52 : 1
     const speedScale = (1 + Math.min(this.elapsed / (this.roundSeconds * 1000), 1) * 1.15) * storyPressure * stillMindScale
     const width = this.scale.width
@@ -400,8 +402,8 @@ export class GameScene extends Phaser.Scene {
     // Commit the transition before phase announcements or any other UI event.
     // A presentation-layer failure must not be able to freeze the battle.
     this.scheduleQuestionAdvance(460, () => this.runMode === 'chapter' && this.resolve <= 0 ? this.completeRound() : this.nextQuestion())
-    if (this.runMode === 'chapter') this.updateBattlePhase()
-    if (this.opponentId === 'iwao-jubei' && !this.stillMindUsed && this.combo >= 5) this.activateStillMind()
+    if (this.runMode === 'chapter' && this.masterEncounter) this.updateBattlePhase()
+    if (this.masterEncounter && this.opponentId === 'iwao-jubei' && !this.stillMindUsed && this.combo >= 5) this.activateStillMind()
     this.recordOutcome(true)
     this.emitHud()
     this.feedback('correct', 'CORRECT')
