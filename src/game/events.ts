@@ -20,6 +20,14 @@ export const gameEvents = {
     return () => set.delete(listener as (value: never) => void)
   },
   emit<K extends keyof Events>(name: K, value: Events[K]) {
-    listeners.get(name)?.forEach((listener) => listener(value as never))
+    listeners.get(name)?.forEach((listener) => {
+      try {
+        listener(value as never)
+      } catch (error) {
+        // React overlays are presentation only. Never allow one failed listener
+        // to interrupt Phaser scoring or question progression.
+        console.error(`Game UI listener failed for ${name}`, error)
+      }
+    })
   },
 }

@@ -397,13 +397,13 @@ export class GameScene extends Phaser.Scene {
     this.bestCombo = Math.max(this.bestCombo, this.combo)
     this.score += pointsFor(this.combo)
     if (this.runMode === 'chapter') this.resolve = Math.max(0, this.resolve - 1)
+    // Commit the transition before phase announcements or any other UI event.
+    // A presentation-layer failure must not be able to freeze the battle.
+    this.scheduleQuestionAdvance(460, () => this.runMode === 'chapter' && this.resolve <= 0 ? this.completeRound() : this.nextQuestion())
     if (this.runMode === 'chapter') this.updateBattlePhase()
     if (this.opponentId === 'iwao-jubei' && !this.stillMindUsed && this.combo >= 5) this.activateStillMind()
     this.recordOutcome(true)
-    // Queue progression before optional presentation effects. Older iOS Safari
-    // canvas implementations must never be able to strand a resolved question.
     this.emitHud()
-    this.scheduleQuestionAdvance(460, () => this.runMode === 'chapter' && this.resolve <= 0 ? this.completeRound() : this.nextQuestion())
     this.feedback('correct', 'CORRECT')
     this.burst(target.container.x, target.container.y, 0xe4513d)
     playCue('correct', this.soundEnabled)
@@ -418,9 +418,9 @@ export class GameScene extends Phaser.Scene {
     this.combo = 0
     this.lives--
     this.incorrect.push(this.current)
+    this.scheduleQuestionAdvance(520, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
     this.recordOutcome(false)
     this.emitHud()
-    this.scheduleQuestionAdvance(520, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
     this.feedback('incorrect', 'WRONG TARGET')
     this.burst(target.container.x, target.container.y, 0x8c8f8d)
     playCue('incorrect', this.soundEnabled)
@@ -437,9 +437,9 @@ export class GameScene extends Phaser.Scene {
     this.combo = 0
     this.lives--
     this.incorrect.push(this.current)
+    this.scheduleQuestionAdvance(450, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
     this.recordOutcome(false)
     this.emitHud()
-    this.scheduleQuestionAdvance(450, () => this.lives > 0 ? this.nextQuestion() : this.completeRound())
     this.feedback('missed', 'MISSED')
     playCue('missed', this.soundEnabled)
     haptic([18, 35, 18])
