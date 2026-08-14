@@ -37,14 +37,19 @@ const chapterBackgrounds: Record<number, string> = {
   1: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-1-eastern-road-v1.webp`,
   2: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-2-river-crossing-v1.webp`,
   3: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-3-lantern-town-v1.webp`,
+  4: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-4-bamboo-dojo-v1.webp`,
 }
 
 const loadProgress = (level: JlptLevel): Progress => {
   try {
     const saved = JSON.parse(localStorage.getItem(`samuright-progress-${level.toLowerCase()}`) ?? (level === 'N5' ? localStorage.getItem('samuright-progress') : '') ?? '') as Progress
-    if (level !== 'N5') return { ...defaultProgress, ...saved }
     const prefix = (id: string) => id.startsWith('n5-') ? id : `n5-${id}`
-    return { ...defaultProgress, ...saved, completed: (saved.completed ?? []).map(prefix), bestScores: Object.fromEntries(Object.entries(saved.bestScores ?? {}).map(([id, score]) => [prefix(id), score])) }
+    const completed = level === 'N5' ? (saved.completed ?? []).map(prefix) : saved.completed ?? []
+    const bestScores = level === 'N5' ? Object.fromEntries(Object.entries(saved.bestScores ?? {}).map(([id, score]) => [prefix(id), score])) : saved.bestScores ?? {}
+    // Existing players who already cleared Chapter 3 should immediately see
+    // the newly-added Bamboo Dojo rather than having to replay old content.
+    const clearedLanternTown = completed.some((id) => id.endsWith('-lantern-town'))
+    return { ...defaultProgress, ...saved, completed, bestScores, unlocked: clearedLanternTown ? Math.max(saved.unlocked ?? 1, 4) : saved.unlocked ?? 1 }
   }
   catch { return defaultProgress }
 }
@@ -335,6 +340,7 @@ function ResultsScreen({ chapter, result, passed, earnedXp, newAchievements, pla
     <div className="stats"><div><small>Accuracy</small><strong>{accuracy}%</strong></div><div><small>Best Combo</small><strong>{result.bestCombo}</strong></div><div><small>Correct</small><strong>{result.correct}/{result.attempted}</strong></div></div>
     <section className="review"><h2>Review these words</h2>{review.length ? review.map((word) => <div className="review-row" key={word.japanese}><span>!</span><b lang="ja">{word.japanese}</b><small>{word.meaning}</small></div>) : <p className="perfect">Perfect round. Your path is sharp.</p>}</section>
     <section className="reward-card"><span><b>+{earnedXp} XP</b><small>RANK {rank.level} · {rank.title}</small></span><i><em style={{ width: `${rank.percent}%` }} /></i><strong>🔥 {player.streak} day streak</strong></section>
+    {result.mode === 'chapter' && passed && chapter.number === 4 && <section className="achievement-toast story-crest"><b lang="ja">律</b><span><small>MASTER CREST EARNED</small><strong>Discipline</strong></span></section>}
     {newAchievements.map((id) => { const crest = ACHIEVEMENTS.find((item) => item.id === id); return crest ? <section className="achievement-toast" key={id}><b lang="ja">{crest.japanese}</b><span><small>NEW CREST</small><strong>{crest.title}</strong></span></section> : null })}
     {(result.mode !== 'chapter' || !passed) && <section className="story-card"><span>REN · {result.mode === 'daily' ? 'DAILY CHALLENGE' : result.mode === 'dojo' ? 'DOJO MODE' : result.mode === 'focus' ? 'FOCUS TRAINING' : chapter.title.toUpperCase()}</span><p>{result.mode === 'daily' ? 'A little training each day keeps the blade bright.' : result.mode === 'dojo' ? 'The dojo sharpens speed, accuracy, and resolve.' : result.mode === 'focus' ? 'Weak points become strengths when we face them directly.' : 'Reach 70% accuracy to complete this chapter. We will try again.'}</p></section>}
     <div className="result-actions">{review.length > 0 && <button className="secondary-button" onClick={onReview}>REVIEW {review.length}</button>}<button className="primary-button" onClick={onJourney}>CONTINUE</button>{result.mode !== 'daily' && <button className="text-button" onClick={onReplay}>{result.mode === 'focus' ? 'Replay focus training' : 'Replay chapter'}</button>}</div>
