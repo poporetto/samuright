@@ -180,7 +180,7 @@ function JourneyScreen({ progress, profile, player, level, chapters, words, onCh
   const mastered = words.filter((word) => (profile.mastery[wordKey(word)]?.level ?? 0) >= 4).length
   const rank = rankForXp(player.xp); const dailyDone = player.dailyCompletedDate === dateKey()
   return <main className="screen journey-screen">
-    <header className="journey-header"><div className="brand brand--small">SAMURIGHT</div><p className="eyebrow">THE JOURNEY</p><h1>Choose the next road</h1></header>
+    <header className="journey-header"><div className="brand brand--small">SAMURIGHT</div><p className="eyebrow">REN'S JOURNEY</p><h1>Choose the next chapter</h1></header>
     <section className="player-rank"><span><b>RANK {rank.level}</b><small>{rank.title}</small></span><i><em style={{ width: `${rank.percent}%` }} /></i><strong>🔥 {player.streak}</strong></section>
     <div className="journey-path" aria-hidden="true" />
     <section className="chapter-list">
@@ -207,6 +207,7 @@ function DialogueScreen({ chapter, lines, onContinue, phase = 'CHAPTER' }: { cha
   const activeLine = lines[line]
   const speaker = activeLine.speaker.toLowerCase()
   const artwork = speakerArtwork[activeLine.speaker]
+  const displaySpeaker = activeLine.speaker === 'NARRATOR' ? 'NARRATOR' : chapter.number === 1 && activeLine.speaker === 'JŪBEI' ? 'WANDERING SWORDSMAN' : activeLine.speaker
   return <main className="screen dialogue-screen">
     <div className="dialogue-background" aria-hidden="true">
       <img src={chapterBackgrounds[chapter.number]} alt="" draggable="false" />
@@ -215,8 +216,8 @@ function DialogueScreen({ chapter, lines, onContinue, phase = 'CHAPTER' }: { cha
     {artwork && <div key={`${speaker}-${line}`} className={`dialogue-art dialogue-art--${speaker}`} aria-hidden="true">
       <img src={artwork} alt="" draggable="false" />
     </div>}
-    <button className={`dialogue-box ${activeLine.speaker === 'NARRATOR' ? 'dialogue-box--narrator' : ''}`} type="button" onClick={next} aria-label={`${activeLine.speaker}: ${activeLine.text}. Continue dialogue.`}>
-      <span>{activeLine.speaker === 'NARRATOR' ? 'THE ROAD' : activeLine.speaker}</span><p aria-live="polite">{activeLine.text}</p><small>{line + 1} / {lines.length} · TAP TO CONTINUE</small>
+    <button className={`dialogue-box ${activeLine.speaker === 'NARRATOR' ? 'dialogue-box--narrator' : ''}`} type="button" onClick={next} aria-label={`${displaySpeaker}: ${activeLine.text}. Continue dialogue.`}>
+      <span>{displaySpeaker}</span><p aria-live="polite">{activeLine.text}</p><small>{line + 1} / {lines.length} · TAP TO CONTINUE</small>
     </button>
   </main>
 }
@@ -335,7 +336,7 @@ function ResultsScreen({ chapter, result, passed, earnedXp, newAchievements, pla
     <section className="review"><h2>Review these words</h2>{review.length ? review.map((word) => <div className="review-row" key={word.japanese}><span>!</span><b lang="ja">{word.japanese}</b><small>{word.meaning}</small></div>) : <p className="perfect">Perfect round. Your path is sharp.</p>}</section>
     <section className="reward-card"><span><b>+{earnedXp} XP</b><small>RANK {rank.level} · {rank.title}</small></span><i><em style={{ width: `${rank.percent}%` }} /></i><strong>🔥 {player.streak} day streak</strong></section>
     {newAchievements.map((id) => { const crest = ACHIEVEMENTS.find((item) => item.id === id); return crest ? <section className="achievement-toast" key={id}><b lang="ja">{crest.japanese}</b><span><small>NEW CREST</small><strong>{crest.title}</strong></span></section> : null })}
-    {(result.mode !== 'chapter' || !passed) && <section className="story-card"><span>REN · {result.mode === 'daily' ? 'DAILY CHALLENGE' : result.mode === 'dojo' ? 'DOJO MODE' : result.mode === 'focus' ? 'FOCUS TRAINING' : chapter.title.toUpperCase()}</span><p>{result.mode === 'daily' ? 'A little training each day keeps the blade bright.' : result.mode === 'dojo' ? 'The dojo sharpens speed, accuracy, and resolve.' : result.mode === 'focus' ? 'Weak points become strengths when we face them directly.' : 'Reach 70% accuracy to clear this road. We will try again.'}</p></section>}
+    {(result.mode !== 'chapter' || !passed) && <section className="story-card"><span>REN · {result.mode === 'daily' ? 'DAILY CHALLENGE' : result.mode === 'dojo' ? 'DOJO MODE' : result.mode === 'focus' ? 'FOCUS TRAINING' : chapter.title.toUpperCase()}</span><p>{result.mode === 'daily' ? 'A little training each day keeps the blade bright.' : result.mode === 'dojo' ? 'The dojo sharpens speed, accuracy, and resolve.' : result.mode === 'focus' ? 'Weak points become strengths when we face them directly.' : 'Reach 70% accuracy to complete this chapter. We will try again.'}</p></section>}
     <div className="result-actions">{review.length > 0 && <button className="secondary-button" onClick={onReview}>REVIEW {review.length}</button>}<button className="primary-button" onClick={onJourney}>CONTINUE</button>{result.mode !== 'daily' && <button className="text-button" onClick={onReplay}>{result.mode === 'focus' ? 'Replay focus training' : 'Replay chapter'}</button>}</div>
   </main>
 }
