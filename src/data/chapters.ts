@@ -27,10 +27,10 @@ export type ChapterPart = {
   words: VocabularyWord[]
 }
 
-export type DialogueSpeaker = 'NARRATOR' | 'REN' | 'HANA' | 'JŪBEI' | 'SABURŌ' | 'KICHIRŌ'
+export type DialogueSpeaker = 'NARRATOR' | 'REN' | 'HANA' | 'JŪBEI' | 'SABURŌ' | 'ASHIGARU' | 'KICHIRŌ'
 export type DialogueLine = { speaker: DialogueSpeaker; text: string }
 export type BattleOpponent = {
-  id: 'iwao-jubei' | 'saburo' | 'mizuno-kichiro'
+  id: 'iwao-jubei' | 'saburo' | 'ashigaru-foot-soldier' | 'mizuno-kichiro'
   name: string
   title: string
   masterEncounter?: boolean
@@ -245,7 +245,82 @@ const chapterTemplate: ChapterTemplate[] = [
   },
   {
     id: 'lantern-town', number: 3, title: 'The Lantern Town', japaneseTitle: '灯り町',
-    description: 'Words for meeting, making, and understanding.',
+    description: 'Ren and Hana enter a guarded town where her disguise begins to unravel.',
+    parts: [
+      {
+        id: 'lantern-gate', number: 1, title: 'The Lantern Gate', description: 'A nervous checkpoint guard finds Hana’s ordinary-traveller act less than convincing.',
+        intro: [
+          { speaker: 'NARRATOR', text: 'Two days later, Ren and Hana reached a post town glowing with evening lanterns. A line of armed foot soldiers guarded its gate.' },
+          { speaker: 'HANA', text: 'Food! Baths! Beds without roots poking through them! This town has my royal appro—my very ordinary approval.' },
+          { speaker: 'REN', text: 'And something smells amazing. Let’s get inside before I start eating the lanterns.' },
+          { speaker: 'ASHIGARU', text: 'Stop! State your names, your business, and whether either of you is a suspicious noblewoman.' },
+          { speaker: 'HANA', text: 'Certainly not. I am Hana, a humble subject—citizen! A humble citizen with no subjects at all.' },
+          { speaker: 'REN', text: 'I’m Ren! Future kensei. We’re here for dinner and directions to the first Master.' },
+          { speaker: 'ASHIGARU', text: 'Future what? Captain Kichirō ordered every unusual traveller inspected.' },
+          { speaker: 'REN', text: 'Then inspect me first. Hana’s hungry, and she gets even less ordinary when she’s hungry.' },
+        ],
+        epilogue: [
+          { speaker: 'NARRATOR', text: 'Ren slipped through the guard’s clumsy formation without landing a single cruel blow.' },
+          { speaker: 'ASHIGARU', text: 'Wait! You cannot simply pass an official checkpoint!' },
+          { speaker: 'REN', text: 'We answered your questions! Mostly. Come find us after dinner if you need another round.' },
+          { speaker: 'HANA', text: 'A gracious solution. I hereby commend— Oh, look! Dumplings!' },
+          { speaker: 'NARRATOR', text: 'Hana disappeared into the market. Ren followed, while the guard reached for his warning whistle.' },
+        ],
+        opponent: { id: 'ashigaru-foot-soldier', name: 'Town Foot Soldier', title: 'Lantern Gate Watch', opening: 'Inspection first. Dinner later!', pressured: 'How are you moving through the formation?', counter: 'Aha! Suspicious footwork!' },
+        complete: 'Ren and Hana passed the gate, but the rattled foot soldier alerted the town patrol.',
+        indices: [30, 31, 32, 33, 34, 35, 36, 37, 38, 39],
+      },
+      {
+        id: 'market-pursuit', number: 2, title: 'The Market Pursuit', description: 'The town patrol closes in while Hana’s royal habits attract the wrong kind of attention.',
+        intro: [
+          { speaker: 'NARRATOR', text: 'The evening market was packed with people, bright shops, and exactly nowhere for two conspicuous travellers to disappear.' },
+          { speaker: 'HANA', text: 'Two dumplings, please. You may charge them to the royal treas— Ren, why are you waving your arms?' },
+          { speaker: 'REN', text: 'Because ordinary travellers pay with ordinary money!' },
+          { speaker: 'HANA', text: 'Right. Of course. I knew that. My pouch appears to be… temporarily coinless.' },
+          { speaker: 'ASHIGARU', text: 'There they are! Captain Kichirō wants both travellers brought in for questioning!' },
+          { speaker: 'REN', text: 'Hana, take the dumplings. I’ll keep them busy.' },
+          { speaker: 'HANA', text: 'Be careful! As your princess—I mean friend, I command—I mean strongly suggest it!' },
+          { speaker: 'REN', text: 'You’re getting worse at this. Go!' },
+        ],
+        epilogue: [
+          { speaker: 'NARRATOR', text: 'Ren led the patrol around carts, beneath banners, and straight through a bewildered troupe of festival dancers.' },
+          { speaker: 'ASHIGARU', text: 'Surround him! Carefully! The captain said carefully!' },
+          { speaker: 'REN', text: 'Your captain sounds reasonable. Maybe we should talk to him instead of wrecking the whole market.' },
+          { speaker: 'HANA', text: 'A splendid idea. I was about to issue the same decree—suggestion.' },
+          { speaker: 'NARRATOR', text: 'The soldiers lowered their spears. From beneath the largest lantern, their captain stepped forward.' },
+        ],
+        opponent: { id: 'ashigaru-foot-soldier', name: 'Town Patrol', title: 'Kichirō’s Foot Soldiers', opening: 'Close the lane! Do not let them reach the square!', pressured: 'He is reading every opening!', counter: 'Hold formation! He can still be cornered!' },
+        complete: 'Ren outmanoeuvred the patrol without harming them and agreed to face their captain directly.',
+        indices: [40, 41, 42, 43, 44, 45, 46, 47, 48, 49],
+      },
+      {
+        id: 'captains-judgment', number: 3, title: 'The Captain’s Judgment', description: 'Captain Kichirō tests whether Ren is Hana’s protector—or her captor.',
+        intro: [
+          { speaker: 'KICHIRŌ', text: 'Enough. Mizuno Kichirō, captain of this town guard. You have embarrassed half my watch without seriously injuring one man.' },
+          { speaker: 'REN', text: 'They were only following orders. Besides, I’m saving my best fight for the Five Masters.' },
+          { speaker: 'KICHIRŌ', text: 'Then answer plainly. Why does your companion speak like a court noble and flee from court soldiers?' },
+          { speaker: 'HANA', text: 'I do not flee. I make brisk, independent departures.' },
+          { speaker: 'REN', text: 'Hana’s travelling with me because she chose to. Whatever she’s running from, I won’t let anyone drag my friend away.' },
+          { speaker: 'KICHIRŌ', text: 'Loyal words can conceal selfish motives. I will judge your control before I judge your story.' },
+          { speaker: 'REN', text: 'Fair enough. Watch closely—I’ll show you exactly what kind of swordsman I’m going to be.' },
+        ],
+        epilogue: [
+          { speaker: 'NARRATOR', text: 'Steel rang once beneath the lanterns. Ren held his ground; Kichirō lowered his sword first.' },
+          { speaker: 'KICHIRŌ', text: 'You fight to shield her, not restrain her. I was wrong about that.' },
+          { speaker: 'REN', text: 'Good! Then we’re done here. Come on, Hana—I can still smell those dumplings.' },
+          { speaker: 'KICHIRŌ', text: 'I said I was wrong about you. I said nothing about her.' },
+          { speaker: 'HANA', text: 'Oh. I was hoping you would overlook that distinction.' },
+          { speaker: 'KICHIRŌ', text: 'My orders concern a missing young noblewoman. If you know anything, trust that I mean her no harm.' },
+          { speaker: 'HANA', text: 'If we meet anyone noble, Captain, you shall be the very first to—second. Ren would be first. Obviously.' },
+          { speaker: 'REN', text: 'That’s right! Friends tell each other important things first.' },
+          { speaker: 'HANA', text: 'Ren! This is not the time to become observant.' },
+          { speaker: 'NARRATOR', text: 'They vanished into the lantern crowd. Kichirō let them go—then quietly ordered two soldiers to follow at a respectful distance.' },
+        ],
+        opponent: { id: 'mizuno-kichiro', name: 'Mizuno Kichirō', title: 'Captain of the Town Guard', opening: 'Show me the discipline behind those cheerful words.', pressured: 'Your technique protects her. That much is true.', counter: 'A careless answer can condemn an innocent person.' },
+        complete: 'Kichirō lowered his sword, unconvinced but unwilling to arrest an innocent traveller by force.',
+        indices: [50, 51, 52, 53, 54, 55, 56, 57, 58, 59],
+      },
+    ],
     intro: [
       { speaker: 'NARRATOR', text: 'Two days later, the unlikely pair reached a post town glowing with evening lanterns—and crowded with road guards.' },
       { speaker: 'HANA', text: 'Food! Baths! Beds that don’t have roots poking through them! I love this town already.' },
@@ -312,15 +387,19 @@ const chapterTemplate: ChapterTemplate[] = [
   },
 ]
 
-export const getChapters = (level: JlptLevel): Chapter[] => chapterTemplate.map(({ indices, ...chapter }) => ({
-  ...chapter,
-  id: `${level.toLowerCase()}-${chapter.id}`,
-  words: indices.map((index) => JLPT_VOCABULARY[level][index]),
-  parts: chapter.parts?.map(({ indices: partIndices, ...part }) => ({
-    ...part,
-    id: `${level.toLowerCase()}-${chapter.id}-${part.id}`,
-    words: partIndices.map((index) => JLPT_VOCABULARY[level][index]),
-  })),
-}))
+export const getChapters = (level: JlptLevel): Chapter[] => {
+  const vocabulary = JLPT_VOCABULARY[level]
+  const selectWords = (indices: number[]) => indices.map((index) => vocabulary[index % vocabulary.length])
+  return chapterTemplate.map(({ indices, ...chapter }) => ({
+    ...chapter,
+    id: `${level.toLowerCase()}-${chapter.id}`,
+    words: selectWords(indices),
+    parts: chapter.parts?.map(({ indices: partIndices, ...part }) => ({
+      ...part,
+      id: `${level.toLowerCase()}-${chapter.id}-${part.id}`,
+      words: selectWords(partIndices),
+    })),
+  }))
+}
 
 export const CHAPTERS = getChapters('N5')

@@ -24,6 +24,7 @@ const startScreenKeyArt = `${import.meta.env.BASE_URL}assets/backgrounds/start-s
 const castArtwork: Record<string, string> = {
   'iwao-jubei': `${import.meta.env.BASE_URL}assets/characters/cast/iwao-jubei.webp`,
   saburo: `${import.meta.env.BASE_URL}assets/characters/cast/saburo.webp`,
+  'ashigaru-foot-soldier': `${import.meta.env.BASE_URL}assets/characters/cast/ashigaru-foot-soldier.webp`,
   'mizuno-kichiro': `${import.meta.env.BASE_URL}assets/characters/cast/mizuno-kichiro.webp`,
 }
 const speakerArtwork: Partial<Record<string, string>> = {
@@ -31,6 +32,7 @@ const speakerArtwork: Partial<Record<string, string>> = {
   HANA: hanaDialogueArtwork,
   JŪBEI: castArtwork['iwao-jubei'],
   SABURŌ: castArtwork.saburo,
+  ASHIGARU: castArtwork['ashigaru-foot-soldier'],
   KICHIRŌ: castArtwork['mizuno-kichiro'],
 }
 const chapterBackgrounds: Record<number, string> = {
@@ -48,10 +50,12 @@ const loadProgress = (level: JlptLevel): Progress => {
     const bestScores = level === 'N5' ? Object.fromEntries(Object.entries(saved.bestScores ?? {}).map(([id, score]) => [prefix(id), score])) : saved.bestScores ?? {}
     const legacyChapterOneComplete = completed.some((id) => id.endsWith('-eastern-road'))
     const legacyChapterTwoComplete = completed.some((id) => id.endsWith('-river-crossing'))
+    const legacyChapterThreeComplete = completed.some((id) => id.endsWith('-lantern-town'))
     const levelPrefix = level.toLowerCase()
     const migratedChapterOneParts = legacyChapterOneComplete ? ['departure', 'five-masters', 'first-lesson'].map((id) => `${levelPrefix}-eastern-road-${id}`) : []
     const migratedChapterTwoParts = legacyChapterTwoComplete ? ['disobedient-river', 'ordinary-traveller', 'river-wolf'].map((id) => `${levelPrefix}-river-crossing-${id}`) : []
-    const completedParts = Array.from(new Set([...(saved.completedParts ?? []), ...migratedChapterOneParts, ...migratedChapterTwoParts]))
+    const migratedChapterThreeParts = legacyChapterThreeComplete ? ['lantern-gate', 'market-pursuit', 'captains-judgment'].map((id) => `${levelPrefix}-lantern-town-${id}`) : []
+    const completedParts = Array.from(new Set([...(saved.completedParts ?? []), ...migratedChapterOneParts, ...migratedChapterTwoParts, ...migratedChapterThreeParts]))
     // Existing players who already cleared Chapter 3 should immediately see
     // the newly-added Bamboo Dojo rather than having to replay old content.
     const clearedLanternTown = completed.some((id) => id.endsWith('-lantern-town'))
