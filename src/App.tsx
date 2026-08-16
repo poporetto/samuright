@@ -9,7 +9,7 @@ import { emptyProfile, masteryLabel, updateMastery, wordKey, type LearningProfil
 import { JLPT_LEVELS, JLPT_VOCABULARY } from './data/jlptVocabulary'
 import { ACHIEVEMENTS, dateKey, emptyProgression, rankForXp, rewardRound, type PlayerProgression } from './game/progression'
 
-type Screen = 'start' | 'level' | 'journey' | 'parts' | 'dojo' | 'dialogue' | 'game' | 'epilogue' | 'results' | 'review' | 'wordbook' | 'history' | 'achievements' | 'settings'
+type Screen = 'start' | 'level' | 'journey' | 'dojo' | 'dialogue' | 'game' | 'epilogue' | 'results' | 'review' | 'wordbook' | 'history' | 'achievements' | 'settings'
 type Progress = { unlocked: number; completed: string[]; completedParts: string[]; bestScores: Record<string, number>; companionMet: boolean }
 const defaultProgress: Progress = { unlocked: 1, completed: [], completedParts: [], bestScores: {}, companionMet: false }
 const initialHud: HudState = { score: 0, lives: STARTING_LIVES, combo: 0, secondsLeft: ROUND_SECONDS, current: { japanese: '食べる', reading: 'たべる', meaning: 'to eat' }, prompt: '食べる', promptLabel: 'Slash the meaning of', promptReading: 'たべる', mode: 'japanese-meaning', focus: STORY_FOCUS, maxFocus: STORY_FOCUS, resolve: STORY_RESOLVE, maxResolve: STORY_RESOLVE, battlePhase: 1 }
@@ -46,10 +46,12 @@ const loadProgress = (level: JlptLevel): Progress => {
     const prefix = (id: string) => id.startsWith('n5-') ? id : `n5-${id}`
     const completed = level === 'N5' ? (saved.completed ?? []).map(prefix) : saved.completed ?? []
     const bestScores = level === 'N5' ? Object.fromEntries(Object.entries(saved.bestScores ?? {}).map(([id, score]) => [prefix(id), score])) : saved.bestScores ?? {}
-    const partPrefix = `${level.toLowerCase()}-eastern-road-`
     const legacyChapterOneComplete = completed.some((id) => id.endsWith('-eastern-road'))
-    const migratedChapterOneParts = legacyChapterOneComplete ? [`${partPrefix}departure`, `${partPrefix}five-masters`, `${partPrefix}first-lesson`] : []
-    const completedParts = Array.from(new Set([...(saved.completedParts ?? []), ...migratedChapterOneParts]))
+    const legacyChapterTwoComplete = completed.some((id) => id.endsWith('-river-crossing'))
+    const levelPrefix = level.toLowerCase()
+    const migratedChapterOneParts = legacyChapterOneComplete ? ['departure', 'five-masters', 'first-lesson'].map((id) => `${levelPrefix}-eastern-road-${id}`) : []
+    const migratedChapterTwoParts = legacyChapterTwoComplete ? ['disobedient-river', 'ordinary-traveller', 'river-wolf'].map((id) => `${levelPrefix}-river-crossing-${id}`) : []
+    const completedParts = Array.from(new Set([...(saved.completedParts ?? []), ...migratedChapterOneParts, ...migratedChapterTwoParts]))
     // Existing players who already cleared Chapter 3 should immediately see
     // the newly-added Bamboo Dojo rather than having to replay old content.
     const clearedLanternTown = completed.some((id) => id.endsWith('-lantern-town'))
@@ -184,12 +186,15 @@ function DojoScreen({ level, onStart, onBack }: { level: JlptLevel; onStart: () 
   </main>
 }
 
-function JourneyScreen({ progress, profile, player, level, chapters, words, onChapter, onFocus, onDaily, onOpen }: { progress: Progress; profile: LearningProfile; player: PlayerProgression; level: JlptLevel; chapters: Chapter[]; words: VocabularyWord[]; onChapter: (chapter: Chapter) => void; onFocus: () => void; onDaily: () => void; onOpen: (screen: Screen) => void }) {
+function JourneyScreen({ progress, profile, player, level, chapters, words, onChapter, onPart, onFocus, onDaily, onOpen }: { progress: Progress; profile: LearningProfile; player: PlayerProgression; level: JlptLevel; chapters: Chapter[]; words: VocabularyWord[]; onChapter: (chapter: Chapter) => void; onPart: (chapter: Chapter, part: ChapterPart) => void; onFocus: () => void; onDaily: () => void; onOpen: (screen: Screen) => void }) {
   const weakCount = words.filter((word) => (profile.mastery[wordKey(word)]?.level ?? 0) < 2 && (profile.mastery[wordKey(word)]?.seen ?? 0) > 0).length
   const mastered = words.filter((word) => (profile.mastery[wordKey(word)]?.level ?? 0) >= 4).length
   const rank = rankForXp(player.xp); const dailyDone = player.dailyCompletedDate === dateKey()
+  const firstOpenChapter = chapters.find((chapter) => chapter.number <= progress.unlocked && chapter.parts?.some((part) => !progress.completedParts.includes(part.id)))
+    ?? chapters.find((chapter) => chapter.number <= progress.unlocked && chapter.parts?.length)
+  const [expandedChapterId, setExpandedChapterId] = useState<string | null>(firstOpenChapter?.id ?? null)
   return <main className="screen journey-screen">
-    <header className="journey-header"><div className="brand brand--small">SAMURIGHT</div><p className="eyebrow">REN'S JOURNEY</p><h1>Choose the next chapter</h1></header>
+    <header className="journey-header"><div className="brand brand--small">SAMURIGHT</div><p className="eyebrow">REN'S JOURNEY</p><h1>Choose a chapter or stage</h1></header>
     <section className="player-rank"><span><b>RANK {rank.level}</b><small>{rank.title}</small></span><i><em style={{ width: `${rank.percent}%` }} /></i><strong>🔥 {player.streak}</strong></section>
     <div className="journey-path" aria-hidden="true" />
     <section className="chapter-list">
@@ -197,33 +202,32 @@ function JourneyScreen({ progress, profile, player, level, chapters, words, onCh
         const unlocked = chapter.number <= progress.unlocked
         const complete = progress.completed.includes(chapter.id)
         const completedPartCount = chapter.parts?.filter((part) => progress.completedParts.includes(part.id)).length ?? 0
-        return <button className={`chapter-node ${complete ? 'is-complete' : ''}`} disabled={!unlocked} onClick={() => onChapter(chapter)} key={chapter.id}>
-          <span className="chapter-number">{complete ? '✓' : unlocked ? chapter.number : '◇'}</span>
-          <span><small>CHAPTER {chapter.number}</small><strong>{chapter.title}</strong><i lang="ja">{chapter.japaneseTitle}</i><em>{chapter.description}</em></span>
-          {chapter.parts ? <b>{completedPartCount}/{chapter.parts.length} PARTS</b> : progress.bestScores[chapter.id] ? <b>{progress.bestScores[chapter.id].toLocaleString()}</b> : null}
-        </button>
+        const expanded = chapter.id === expandedChapterId
+        return <div className={`chapter-group ${expanded ? 'is-expanded' : ''}`} key={chapter.id}>
+          <button className={`chapter-node ${complete ? 'is-complete' : ''}`} disabled={!unlocked} onClick={() => chapter.parts?.length ? setExpandedChapterId(expanded ? null : chapter.id) : onChapter(chapter)} aria-expanded={chapter.parts?.length ? expanded : undefined}>
+            <span className="chapter-number">{complete ? '✓' : unlocked ? chapter.number : '◇'}</span>
+            <span><small>CHAPTER {chapter.number}</small><strong>{chapter.title}</strong><i lang="ja">{chapter.japaneseTitle}</i><em>{chapter.description}</em></span>
+            {chapter.parts ? <b>{completedPartCount}/{chapter.parts.length}<small> STAGES</small><span aria-hidden="true">{expanded ? '⌃' : '⌄'}</span></b> : progress.bestScores[chapter.id] ? <b>{progress.bestScores[chapter.id].toLocaleString()}</b> : null}
+          </button>
+          {expanded && unlocked && chapter.parts && <div className="chapter-parts-inline">
+            {chapter.parts.map((part, index) => {
+              const partComplete = progress.completedParts.includes(part.id)
+              const partUnlocked = index === 0 || progress.completedParts.includes(chapter.parts![index - 1].id)
+              const roman = ['I', 'II', 'III'][index] ?? String(index + 1)
+              return <button className={`chapter-part-node ${partComplete ? 'is-complete' : ''}`} disabled={!partUnlocked} onClick={() => onPart(chapter, part)} key={part.id}>
+                <span>{partComplete ? '✓' : partUnlocked ? roman : '◇'}</span>
+                <div><small>STAGE {roman}</small><strong>{part.title}</strong><p>{part.description}</p><em>{part.words.length} words</em></div>
+                <b aria-hidden="true">›</b>
+              </button>
+            })}
+          </div>}
+        </div>
       })}
     </section>
     <button className={`daily-cta ${dailyDone ? 'is-complete' : ''}`} onClick={onDaily} disabled={dailyDone}><span>{dailyDone ? '✓ DAILY TRAINING COMPLETE' : '☀ DAILY CHALLENGE'}</span><b>{dailyDone ? 'Return tomorrow' : '12 words · 60 sec · +75 XP'}</b></button>
     <nav className="learning-nav"><button onClick={() => onOpen('wordbook')}>WORD BOOK <b>{mastered}/{words.length}</b></button><button onClick={() => onOpen('achievements')}>CRESTS <b>{player.achievements.length}/6</b></button><button onClick={() => onOpen('settings')}>{level} · ⚙</button></nav>
     {weakCount > 0 && <button className="focus-cta" onClick={onFocus}><span>FOCUS TRAINING</span><b>{weakCount} weak words · 45 sec</b></button>}
     <PixelPortrait className="journey-mascot" />
-  </main>
-}
-
-function ChapterPartsScreen({ chapter, completedParts, onPart, onBack }: { chapter: Chapter; completedParts: string[]; onPart: (part: ChapterPart) => void; onBack: () => void }) {
-  const completeCount = chapter.parts?.filter((part) => completedParts.includes(part.id)).length ?? 0
-  return <main className="screen parts-screen"><SubHeader title={`Chapter ${chapter.number}`} onBack={onBack} />
-    <header className="parts-heading"><p className="eyebrow">{chapter.japaneseTitle}</p><h1>{chapter.title}</h1><p>{completeCount} of {chapter.parts?.length ?? 0} parts complete</p></header>
-    <section className="parts-list">{chapter.parts?.map((part, index) => {
-      const complete = completedParts.includes(part.id)
-      const unlocked = index === 0 || completedParts.includes(chapter.parts![index - 1].id)
-      return <button className={complete ? 'is-complete' : ''} disabled={!unlocked} onClick={() => onPart(part)} key={part.id}>
-        <span>{complete ? '✓' : unlocked ? ['I', 'II', 'III'][index] : '◇'}</span>
-        <div><small>PART {['I', 'II', 'III'][index]}</small><strong>{part.title}</strong><p>{part.description}</p><em>{part.words.length} words</em></div><b>›</b>
-      </button>
-    })}</section>
-    <PixelPortrait className="parts-mascot" pose={completeCount ? 1 : 0} />
   </main>
 }
 
@@ -397,9 +401,13 @@ export default function App() {
   const chooseChapter = (selected: Chapter) => {
     if (selected.number >= 2) setProgress((current) => ({ ...current, companionMet: true }))
     setRunMode('chapter'); setChapter(selected); setSelectedPart(null); setResult(null)
-    setScreen(selected.parts?.length ? 'parts' : 'dialogue')
+    setScreen('dialogue')
   }
-  const choosePart = (part: ChapterPart) => { setRunMode('chapter'); setSelectedPart(part); setResult(null); setScreen('dialogue') }
+  const choosePart = (selected: Chapter, part: ChapterPart) => {
+    if (selected.number >= 2) setProgress((current) => ({ ...current, companionMet: true }))
+    setRunMode('chapter'); setChapter(selected); setSelectedPart(part); setResult(null)
+    setScreen('dialogue')
+  }
   const startRound = () => setScreen('game')
   const startFocus = () => {
     const weak = vocabulary.filter((word) => { const mastery = learning.mastery[wordKey(word)]; return mastery?.seen && mastery.level < 2 })
@@ -429,11 +437,10 @@ export default function App() {
   if (screen === 'start') return <StartScreen sound={sound} setSound={setSound} onStory={() => setScreen('level')} onDojo={() => setScreen('dojo')} />
   if (screen === 'level') return <LevelScreen selected={jlptLevel} onSelect={chooseLevel} onBack={() => setScreen('start')} />
   if (screen === 'dojo') return <DojoScreen level={jlptLevel} onStart={startDojo} onBack={() => setScreen('start')} />
-  if (screen === 'journey') return <JourneyScreen progress={progress} profile={learning} player={player} level={jlptLevel} chapters={chapters} words={vocabulary} onChapter={chooseChapter} onFocus={startFocus} onDaily={startDaily} onOpen={setScreen} />
-  if (screen === 'parts') return <ChapterPartsScreen chapter={chapter} completedParts={progress.completedParts} onPart={choosePart} onBack={() => { setSelectedPart(null); setScreen('journey') }} />
+  if (screen === 'journey') return <JourneyScreen progress={progress} profile={learning} player={player} level={jlptLevel} chapters={chapters} words={vocabulary} onChapter={chooseChapter} onPart={choosePart} onFocus={startFocus} onDaily={startDaily} onOpen={setScreen} />
   if (screen === 'dialogue') return <DialogueScreen chapter={activeStory} lines={activeStory.intro} onContinue={startRound} />
   if (screen === 'epilogue') return <DialogueScreen chapter={activeStory} lines={activeStory.epilogue} phase="EPILOGUE" onContinue={() => setScreen('results')} />
-  if (screen === 'results' && result) return <ResultsScreen chapter={activeStory} result={result} passed={result.mode !== 'chapter' || (result.attempted ? result.correct / result.attempted >= .7 : false)} earnedXp={earnedXp} newAchievements={newAchievements} player={player} onJourney={() => setScreen(selectedPart ? 'parts' : 'journey')} onReplay={() => runMode === 'focus' ? startFocus() : runMode === 'daily' ? startDaily() : runMode === 'dojo' ? startDojo() : setScreen('dialogue')} onReview={() => setScreen('review')} />
+  if (screen === 'results' && result) return <ResultsScreen chapter={activeStory} result={result} passed={result.mode !== 'chapter' || (result.attempted ? result.correct / result.attempted >= .7 : false)} earnedXp={earnedXp} newAchievements={newAchievements} player={player} onJourney={() => { setSelectedPart(null); setScreen('journey') }} onReplay={() => runMode === 'focus' ? startFocus() : runMode === 'daily' ? startDaily() : runMode === 'dojo' ? startDojo() : setScreen('dialogue')} onReview={() => setScreen('review')} />
   if (screen === 'review' && reviewWords.length) return <ReviewScreen words={reviewWords} onDone={() => setScreen('results')} />
   if (screen === 'wordbook') return <WordbookScreen profile={learning} words={vocabulary} level={jlptLevel} onBack={() => setScreen('journey')} />
   if (screen === 'history') return <HistoryScreen sessions={learning.sessions} chapters={chapters} onBack={() => setScreen('journey')} />
