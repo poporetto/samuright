@@ -51,11 +51,13 @@ const loadProgress = (level: JlptLevel): Progress => {
     const legacyChapterOneComplete = completed.some((id) => id.endsWith('-eastern-road'))
     const legacyChapterTwoComplete = completed.some((id) => id.endsWith('-river-crossing'))
     const legacyChapterThreeComplete = completed.some((id) => id.endsWith('-lantern-town'))
+    const legacyChapterFourComplete = completed.some((id) => id.endsWith('-bamboo-dojo'))
     const levelPrefix = level.toLowerCase()
     const migratedChapterOneParts = legacyChapterOneComplete ? ['departure', 'five-masters', 'first-lesson'].map((id) => `${levelPrefix}-eastern-road-${id}`) : []
     const migratedChapterTwoParts = legacyChapterTwoComplete ? ['disobedient-river', 'ordinary-traveller', 'river-wolf'].map((id) => `${levelPrefix}-river-crossing-${id}`) : []
     const migratedChapterThreeParts = legacyChapterThreeComplete ? ['lantern-gate', 'market-pursuit', 'captains-judgment'].map((id) => `${levelPrefix}-lantern-town-${id}`) : []
-    const completedParts = Array.from(new Set([...(saved.completedParts ?? []), ...migratedChapterOneParts, ...migratedChapterTwoParts, ...migratedChapterThreeParts]))
+    const migratedChapterFourParts = legacyChapterFourComplete ? ['master-in-the-mist', 'broken-rhythm', 'discipline-crest'].map((id) => `${levelPrefix}-bamboo-dojo-${id}`) : []
+    const completedParts = Array.from(new Set([...(saved.completedParts ?? []), ...migratedChapterOneParts, ...migratedChapterTwoParts, ...migratedChapterThreeParts, ...migratedChapterFourParts]))
     // Existing players who already cleared Chapter 3 should immediately see
     // the newly-added Bamboo Dojo rather than having to replay old content.
     const clearedLanternTown = completed.some((id) => id.endsWith('-lantern-town'))
