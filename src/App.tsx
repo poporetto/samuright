@@ -33,7 +33,7 @@ const speakerArtwork: Partial<Record<string, string>> = {
   JŪBEI: castArtwork['iwao-jubei'],
   SABURŌ: castArtwork.saburo,
   ASHIGARU: castArtwork['ashigaru-foot-soldier'],
-  KICHIRŌ: castArtwork['mizuno-kichiro'],
+  KICHIROU: castArtwork['mizuno-kichiro'],
 }
 const chapterBackgrounds: Record<number, string> = {
   1: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-1-eastern-road-v1.webp`,

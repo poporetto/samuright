@@ -53,6 +53,7 @@ export class GameScene extends Phaser.Scene {
   private questionAdvanceTimer: number | null = null
   private questionAdvanceQueued = false
   private questionAdvanceDeadline = 0
+  private questionAdvanceRemainingMs = 0
   private questionAdvanceCallback: (() => void) | null = null
   private soundEnabled = true
   private hitStopMs = 0
@@ -79,6 +80,7 @@ export class GameScene extends Phaser.Scene {
     this.score = 0; this.combo = 0; this.bestCombo = 0; this.correct = 0; this.attempted = 0
     this.elapsed = 0; this.outcomes = []; this.incorrect = []; this.finished = false; this.hitStopMs = 0
     this.battlePhase = 1; this.stillMindMs = 0; this.stillMindUsed = false
+    this.questionAdvanceQueued = false; this.questionAdvanceDeadline = 0; this.questionAdvanceRemainingMs = 0; this.questionAdvanceCallback = null
     this.secondsLeft = this.roundSeconds
   }
 
@@ -110,7 +112,8 @@ export class GameScene extends Phaser.Scene {
   private scheduleQuestionAdvance(delay: number, callback: () => void) {
     if (this.finished || this.questionAdvanceQueued) return
     this.questionAdvanceQueued = true
-    this.questionAdvanceDeadline = performance.now() + delay
+    this.questionAdvanceDeadline = Date.now() + delay
+    this.questionAdvanceRemainingMs = delay
     this.questionAdvanceCallback = callback
     this.questionAdvanceTimer = window.setTimeout(() => this.runQuestionAdvance(), delay)
   }
@@ -122,6 +125,7 @@ export class GameScene extends Phaser.Scene {
     this.questionAdvanceTimer = null
     this.questionAdvanceQueued = false
     this.questionAdvanceDeadline = 0
+    this.questionAdvanceRemainingMs = 0
     this.questionAdvanceCallback = null
     if (!this.finished) callback?.()
   }
@@ -131,6 +135,7 @@ export class GameScene extends Phaser.Scene {
     this.questionAdvanceTimer = null
     this.questionAdvanceQueued = false
     this.questionAdvanceDeadline = 0
+    this.questionAdvanceRemainingMs = 0
     this.questionAdvanceCallback = null
   }
 
@@ -203,9 +208,13 @@ export class GameScene extends Phaser.Scene {
 
   update(_time: number, delta: number) {
     if (this.finished) return
-    // WebKit can defer a browser timer around a touch gesture. The scene clock
-    // independently completes the same queued transition on the next frame.
-    if (this.questionAdvanceQueued && performance.now() >= this.questionAdvanceDeadline) this.runQuestionAdvance()
+    // WebKit can defer browser timers around touch handling. Count down from
+    // rendered frames as the primary clock, with wall time and setTimeout as
+    // independent fallbacks so a missed target can never strand the question.
+    if (this.questionAdvanceQueued) {
+      this.questionAdvanceRemainingMs -= Math.max(0, delta)
+      if (this.questionAdvanceRemainingMs <= 0 || Date.now() >= this.questionAdvanceDeadline) this.runQuestionAdvance()
+    }
     if (this.finished) return
     if (this.hitStopMs > 0) {
       this.hitStopMs -= delta
@@ -243,6 +252,7 @@ export class GameScene extends Phaser.Scene {
   private nextQuestion() {
     if (this.finished) return
     this.questionAdvanceQueued = false
+    this.questionAdvanceRemainingMs = 0
     if (this.deck.length === 0) this.deck = this.makeDeck()
     this.current = this.deck.shift()!
     this.questionMode = chooseMode(this.current, this.learningProfile)
@@ -545,8 +555,8 @@ export class GameScene extends Phaser.Scene {
       const background = this.add.graphics()
       const edgeTop = -height / 2
       const edgeBottom = height / 2
-      background.fillStyle(0xffffff, .97)
-      background.lineStyle(1.5, 0xc6a15b, .82)
+      background.fillStyle(0xf1d7a4, .99)
+      background.lineStyle(2, 0x9a652e, .9)
       background.beginPath()
       if (side < 0) {
         background.moveTo(-width / 2, edgeTop)
@@ -564,6 +574,12 @@ export class GameScene extends Phaser.Scene {
         background.lineTo(-4, -height * .18)
       }
       background.closePath(); background.fillPath(); background.strokePath()
+      background.lineStyle(1.2, 0xb98242, .38)
+      background.lineBetween(side < 0 ? -width * .43 : width * .08, -height * .2, side < 0 ? -width * .08 : width * .43, -height * .25)
+      background.lineBetween(side < 0 ? -width * .4 : width * .1, height * .2, side < 0 ? -width * .1 : width * .4, height * .15)
+      background.lineStyle(2, 0x74471f, .7)
+      background.lineBetween(side < 0 ? -3 : 3, -height * .44, side < 0 ? 2 : -2, -height * .2)
+      background.lineBetween(side < 0 ? 2 : -2, height * .08, side < 0 ? -2 : 2, height * .42)
       const index = side < 0 ? 0 : 1
       const label = this.add.text(side * width * .25, 0, labels[index], {
         fontFamily: 'Inter, system-ui, sans-serif', fontSize: `${Math.max(16, fontSize * .86)}px`, color: '#202322',
@@ -577,16 +593,36 @@ export class GameScene extends Phaser.Scene {
       const direction = index === 0 ? -1 : 1
       this.tweens.add({
         targets: fragment,
-        x: x + normal.x * 34 * direction,
-        y: y + normal.y * 34 * direction + 14,
-        rotation: rotation + direction * .075,
+        x: x + normal.x * 48 * direction,
+        y: y + normal.y * 48 * direction + 20,
+        rotation: rotation + direction * .13,
         alpha: 0,
-        duration: 420,
+        duration: 540,
         ease: 'Quad.easeOut',
         onComplete: () => fragment.destroy(),
       })
     })
+    this.woodSplinters(x, y, worldAngle)
     this.brushImpact(x, y, worldAngle, accent)
+  }
+
+  private woodSplinters(x: number, y: number, angle: number) {
+    for (let index = 0; index < 9; index++) {
+      const direction = index % 2 === 0 ? -1 : 1
+      const splinter = this.add.rectangle(x, y, Phaser.Math.Between(3, 8), Phaser.Math.Between(1, 3), index % 3 === 0 ? 0x74471f : 0xc28b49, .95)
+        .setDepth(54)
+        .setRotation(angle + Phaser.Math.FloatBetween(-.65, .65))
+      this.tweens.add({
+        targets: splinter,
+        x: x + direction * Phaser.Math.Between(24, 72),
+        y: y + Phaser.Math.Between(-38, 48),
+        rotation: splinter.rotation + Phaser.Math.FloatBetween(-1.2, 1.2),
+        alpha: 0,
+        duration: Phaser.Math.Between(380, 560),
+        ease: 'Quad.easeOut',
+        onComplete: () => splinter.destroy(),
+      })
+    }
   }
 
   private brushImpact(x: number, y: number, angle: number, accent: number) {
