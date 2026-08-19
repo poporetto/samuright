@@ -659,6 +659,18 @@ export class GameScene extends Phaser.Scene {
         ? nextPhase === 2
           ? { title: 'AKANE · GALE STANCE', message: 'The pass howls. Keep moving through the fear.' }
           : { title: 'AKANE · CRIMSON STANCE', message: 'One final choice. Protect what you refuse to lose.' }
+        : this.opponentId === 'takamine-harunobu'
+          ? nextPhase === 2
+            ? { title: 'HARUNOBU · VEILED STANCE', message: 'The obvious opening is a question, not an invitation.' }
+            : { title: 'HARUNOBU · EMPTY BLADE', message: 'See the cost. Strike only when the answer is clear.' }
+          : this.opponentId === 'masanori'
+            ? nextPhase === 2
+              ? { title: 'MASANORI · DIVIDE', message: 'He presses the space between Ren and Hana.' }
+              : { title: 'MASANORI · BROKEN OATH', message: 'Trust each other. Leave him no doubt to use.' }
+            : this.opponentId === 'takamine-nobumasa'
+              ? nextPhase === 2
+                ? { title: 'NOBUMASA · IRON ORDER', message: 'The false master forces every target faster.' }
+                : { title: 'NOBUMASA · LAST DECREE', message: 'Hold every lesson. The truth needs one final opening.' }
         : null
     if (!phaseCopy) return
     gameEvents.emit('battle', { type: 'phase', phase: nextPhase, ...phaseCopy })

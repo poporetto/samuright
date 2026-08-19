@@ -43,10 +43,11 @@ Every story chapter ends in a word-slashing duel. Correct answers pressure the o
 - Dialogue bubbles appear at the opening, first mistake, combo milestone, phase change and victory; they must never cover answer targets.
 - Later production can add expression portraits without requiring complete enemy sprite sheets.
 
-## Current prototype slice
+## Current story build
 
-- Chapter 1: Jūbei portrait, tutorial challenge and reaction lines.
-- Chapter 2: Saburō portrait, river confrontation and reaction lines.
-- Chapter 3: Kichirō portrait, inspection confrontation and reaction lines.
-- Start screen: Story Mode and Dojo Mode entrances.
-- Dojo Mode: existing two-minute score loop using the player's selected JLPT vocabulary.
+- Chapters 1–11 are implemented as three-stage chapters, from Ren’s departure through the final road-home rematch.
+- All five Master trials, crest rewards, Hana’s identity reveal, Nobumasa’s conspiracy and the complete story epilogue are playable.
+- Every named opponent uses a dialogue portrait and authored battle reactions; Master and boss encounters add phase pressure and phase-specific cues.
+- Story progress, completed stages and best scores persist locally for each JLPT path.
+- Start screen includes Story Mode and Dojo Mode entrances.
+- Dojo Mode retains the two-minute score loop using the player’s selected JLPT vocabulary.
