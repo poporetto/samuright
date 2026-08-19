@@ -651,10 +651,16 @@ export class GameScene extends Phaser.Scene {
     const nextPhase: 1 | 2 | 3 = ratio > .66 ? 1 : ratio > .33 ? 2 : 3
     if (nextPhase === this.battlePhase) return
     this.battlePhase = nextPhase
-    if (this.opponentId !== 'iwao-jubei') return
-    const phaseCopy = nextPhase === 2
-      ? { title: 'JŪBEI · SECOND STANCE', message: 'The old ronin’s smile sharpens. The lesson quickens.' }
-      : { title: 'JŪBEI · FINAL STANCE', message: 'No wasted motion now. Keep your mind still.' }
+    const phaseCopy = this.opponentId === 'iwao-jubei'
+      ? nextPhase === 2
+        ? { title: 'JŪBEI · SECOND STANCE', message: 'The old ronin’s smile sharpens. The lesson quickens.' }
+        : { title: 'JŪBEI · FINAL STANCE', message: 'No wasted motion now. Keep your mind still.' }
+      : this.opponentId === 'akane-tomoe'
+        ? nextPhase === 2
+          ? { title: 'AKANE · GALE STANCE', message: 'The pass howls. Keep moving through the fear.' }
+          : { title: 'AKANE · CRIMSON STANCE', message: 'One final choice. Protect what you refuse to lose.' }
+        : null
+    if (!phaseCopy) return
     gameEvents.emit('battle', { type: 'phase', phase: nextPhase, ...phaseCopy })
   }
 

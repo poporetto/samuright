@@ -29,6 +29,7 @@ const castArtwork: Record<string, string> = {
   'lady-shizuru': `${import.meta.env.BASE_URL}assets/characters/cast/lady-shizuru.webp`,
   'takamine-harunobu': `${import.meta.env.BASE_URL}assets/characters/cast/takamine-harunobu.webp`,
   'genzo-masatsugu': `${import.meta.env.BASE_URL}assets/characters/cast/genzo-masatsugu.webp`,
+  'akane-tomoe': `${import.meta.env.BASE_URL}assets/characters/cast/akane-tomoe.webp`,
 }
 const speakerArtwork: Partial<Record<string, string>> = {
   REN: renDialogueArtwork,
@@ -40,6 +41,7 @@ const speakerArtwork: Partial<Record<string, string>> = {
   SHIZURU: castArtwork['lady-shizuru'],
   HARU: castArtwork['takamine-harunobu'],
   GENZOU: castArtwork['genzo-masatsugu'],
+  AKANE: castArtwork['akane-tomoe'],
 }
 const chapterBackgrounds: Record<number, string> = {
   1: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-1-eastern-road-v1.webp`,
@@ -48,12 +50,14 @@ const chapterBackgrounds: Record<number, string> = {
   4: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-4-bamboo-dojo-v1.webp`,
   5: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-5-foxfire-inn-v1.webp`,
   6: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-6-lordless-village-v1.webp`,
+  7: `${import.meta.env.BASE_URL}assets/backgrounds/chapter-7-crimson-pass-v1.webp`,
 }
 
 const storyCrests: Partial<Record<number, { kanji: string; title: string }>> = {
   4: { kanji: '律', title: 'Discipline' },
   5: { kanji: '観', title: 'Perception' },
   6: { kanji: '慈', title: 'Compassion' },
+  7: { kanji: '勇', title: 'Courage' },
 }
 
 const saveLocal = (key: string, value: unknown) => {
@@ -89,7 +93,7 @@ const loadProgress = (level: JlptLevel): Progress => {
     const migratedChapterFiveParts = legacyChapterFiveComplete ? ['room-with-two-doors', 'stranger-by-firelight', 'perception-crest'].map((id) => `${levelPrefix}-foxfire-inn-${id}`) : []
     const migratedChapterSixParts = legacyChapterSixComplete ? ['empty-granary', 'unjust-tithe', 'compassion-crest'].map((id) => `${levelPrefix}-lordless-village-${id}`) : []
     const completedParts = Array.from(new Set([...(saved.completedParts ?? []), ...migratedChapterOneParts, ...migratedChapterTwoParts, ...migratedChapterThreeParts, ...migratedChapterFourParts, ...migratedChapterFiveParts, ...migratedChapterSixParts]))
-    const chapterOrder = ['eastern-road', 'river-crossing', 'lantern-town', 'bamboo-dojo', 'foxfire-inn', 'lordless-village']
+    const chapterOrder = ['eastern-road', 'river-crossing', 'lantern-town', 'bamboo-dojo', 'foxfire-inn', 'lordless-village', 'crimson-pass']
     const highestCompleted = chapterOrder.reduce((highest, slug, index) => completed.some((id) => id.endsWith(`-${slug}`)) ? Math.max(highest, index + 1) : highest, 0)
     const unlocked = Math.max(saved.unlocked ?? 1, Math.min(chapterOrder.length, highestCompleted + 1))
     return { ...defaultProgress, ...saved, completed, completedParts, bestScores, unlocked }

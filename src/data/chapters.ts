@@ -27,10 +27,10 @@ export type ChapterPart = {
   words: VocabularyWord[]
 }
 
-export type DialogueSpeaker = 'NARRATOR' | 'REN' | 'HANA' | 'JŪBEI' | 'SABURŌ' | 'ASHIGARU' | 'KICHIROU' | 'SHIZURU' | 'HARU' | 'GENZOU'
+export type DialogueSpeaker = 'NARRATOR' | 'REN' | 'HANA' | 'JŪBEI' | 'SABURŌ' | 'ASHIGARU' | 'KICHIROU' | 'SHIZURU' | 'HARU' | 'GENZOU' | 'AKANE'
 export type DialogueLine = { speaker: DialogueSpeaker; text: string }
 export type BattleOpponent = {
-  id: 'iwao-jubei' | 'saburo' | 'ashigaru-foot-soldier' | 'mizuno-kichiro' | 'lady-shizuru' | 'takamine-harunobu' | 'genzo-masatsugu'
+  id: 'iwao-jubei' | 'saburo' | 'ashigaru-foot-soldier' | 'mizuno-kichiro' | 'lady-shizuru' | 'takamine-harunobu' | 'genzo-masatsugu' | 'akane-tomoe'
   name: string
   title: string
   masterEncounter?: boolean
@@ -623,6 +623,87 @@ const chapterTemplate: ChapterTemplate[] = [
     opponent: { id: 'genzo-masatsugu', name: 'Master Genzou Masatsugu', title: 'Master of Compassion', masterEncounter: true, opening: 'Protect what matters.', pressured: 'Keep everyone in your sight.', counter: 'Recover and guard the opening.' },
     complete: 'Ren earned the Compassion Crest in the village without a lord.',
     indices: [140, 141, 142, 143, 144, 145, 146, 147, 148, 149],
+  },
+  {
+    id: 'crimson-pass', number: 7, title: 'The Crimson Pass', japaneseTitle: '紅葉峠',
+    description: 'Ren learns that courage means choosing what matters while fear is still speaking.',
+    parts: [
+      {
+        id: 'road-of-storms', number: 1, title: 'The Road of Storms', description: 'A broken bridge forces Ren and Hana onto the dangerous mountain path.',
+        intro: [
+          { speaker: 'NARRATOR', text: 'Beyond the village, the safe road ended at a bridge split cleanly by the storm. Only a steep trail through the Crimson Pass remained.' },
+          { speaker: 'HANA', text: 'As ranking member of this expedition, I officially declare that mountain extremely suspicious.' },
+          { speaker: 'REN', text: 'It is only a mountain! A tall, windy mountain with falling rocks. We can handle that.' },
+          { speaker: 'HANA', text: 'Your reassurance became less reassuring with every word.' },
+          { speaker: 'REN', text: 'Then stay close. We take it one step at a time, and neither of us gets left behind.' },
+          { speaker: 'NARRATOR', text: 'A crimson ribbon snapped in the wind above them. Its owner watched from the ridge without announcing herself.' },
+        ],
+        epilogue: [
+          { speaker: 'NARRATOR', text: 'Ren cut loose branches away from the trail and caught Hana just before her brave leap became a very long fall.' },
+          { speaker: 'HANA', text: 'I had the landing completely planned.' },
+          { speaker: 'REN', text: 'Good plan! Next time, include the ground.' },
+          { speaker: 'AKANE', text: 'You joke while the mountain tries to throw you off it. Brave—or foolish.' },
+          { speaker: 'REN', text: 'Probably both! Are you the Crimson Traveller?' },
+        ],
+        opponent: { id: 'akane-tomoe', name: 'Crimson Pass', title: 'The Storm Trail', hidden: true, opening: '', pressured: '', counter: '' },
+        complete: 'Ren and Hana survived the storm trail and found the Crimson Traveller waiting above them.',
+        indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      },
+      {
+        id: 'crimson-traveller', number: 2, title: 'The Crimson Traveller', description: 'Akane tests whether Ren’s confidence survives real danger.',
+        intro: [
+          { speaker: 'AKANE', text: 'Akane Tomoe. Some call me the Crimson Traveller. Genzou sent word that a loud dreamer was climbing my pass.' },
+          { speaker: 'REN', text: 'That’s me! Three crests down, two to go. Are you the next Master?' },
+          { speaker: 'AKANE', text: 'You ask for titles before proving you can reach the summit.' },
+          { speaker: 'HANA', text: 'He is very efficient. Subtlety requires patience, and patience delays lunch.' },
+          { speaker: 'AKANE', text: 'The lower trail is collapsing. Turn back now and no one will call you a coward.' },
+          { speaker: 'REN', text: 'I might be scared, but Hana is counting on me. Turning back because I’m afraid would feel worse.' },
+          { speaker: 'AKANE', text: 'Good. Fear has spoken. Now show me who answers it.' },
+        ],
+        epilogue: [
+          { speaker: 'AKANE', text: 'You kept moving when the wind stole your footing. But courage is easy when only your pride is at risk.' },
+          { speaker: 'REN', text: 'Then make the next test harder.' },
+          { speaker: 'HANA', text: 'Ren, perhaps do not invite the mountain swordswoman to make things harder.' },
+          { speaker: 'AKANE', text: 'Too late. At the fork ahead, you will choose between the crest and your companion.' },
+        ],
+        opponent: { id: 'akane-tomoe', name: 'Akane Tomoe', title: 'The Crimson Traveller', opening: 'Fear is honest. Let me hear your answer.', pressured: 'Good. You move before doubt can root your feet.', counter: 'Feel the fear. Do not let it choose for you.' },
+        complete: 'Akane accepted Ren’s challenge and led the pair toward a final choice at the summit.',
+        indices: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+      },
+      {
+        id: 'courage-crest', number: 3, title: 'The Courage Crest', description: 'Ren must choose between the fastest path to his dream and the friend beside him.',
+        intro: [
+          { speaker: 'NARRATOR', text: 'At the summit fork, one path led safely to Akane’s crest. The other crossed a crumbling ledge where Hana stood stranded above the clouds.' },
+          { speaker: 'AKANE', text: 'The crest is within reach. Go to it now, and your journey continues.' },
+          { speaker: 'HANA', text: 'Ren, do not worry about me! I am perfectly capa—' },
+          { speaker: 'NARRATOR', text: 'The stone beneath Hana’s sandal cracked. Her confidence cracked a moment later.' },
+          { speaker: 'HANA', text: 'A small amount of worry may be appropriate.' },
+          { speaker: 'REN', text: 'Keep the crest! My dream means nothing if I have to abandon my friend to reach it.' },
+          { speaker: 'AKANE', text: 'Then come through me. Protect that choice when the whole mountain pushes back.' },
+          { speaker: 'REN', text: 'Gladly. Hana, hold on—I’m coming!' },
+        ],
+        epilogue: [
+          { speaker: 'NARRATOR', text: 'Ren broke through Akane’s final stance, crossed the ledge, and pulled Hana to solid ground. Only then did he notice the crest in Akane’s hand.' },
+          { speaker: 'AKANE', text: 'Akane Tomoe, Fourth of the Five Masters. You passed when you stopped chasing the reward.' },
+          { speaker: 'REN', text: 'Wait—that was the trial? I thought I gave up my chance!' },
+          { speaker: 'AKANE', text: 'That is why you earned it. Courage is not reaching the crest first. It is choosing what you refuse to lose.' },
+          { speaker: 'HANA', text: 'A magnificent ruling. As prin—your travelling companion, I approve completely.' },
+          { speaker: 'AKANE', text: 'Princess?' },
+          { speaker: 'HANA', text: 'Principled! I said principled. The wind is doing terrible things to everyone’s hearing.' },
+          { speaker: 'REN', text: 'Four crests! One Master left. Hana, we’re really going to make it!' },
+          { speaker: 'AKANE', text: 'The last Master waits at White Heron Castle. Do not expect the truth there to be as simple as this mountain.' },
+          { speaker: 'NARRATOR', text: 'With the Courage Crest tied beside the others, Ren and Hana descended toward the castle—and the secret Hana could no longer outrun.' },
+        ],
+        opponent: { id: 'akane-tomoe', name: 'Master Akane Tomoe', title: 'Master of Courage', masterEncounter: true, opening: 'Protect your choice. I will not make it easy.', pressured: 'Yes! Advance while fear still has a voice.', counter: 'Stand again. Courage begins after the stumble.' },
+        complete: 'Ren earned the Courage Crest by choosing Hana over the quickest path to his dream.',
+        indices: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+      },
+    ],
+    intro: [{ speaker: 'NARRATOR', text: 'Ren and Hana climbed into the Crimson Pass, where the Fourth Master waited behind a storm.' }],
+    epilogue: [{ speaker: 'NARRATOR', text: 'Ren left the pass carrying the Courage Crest and followed Hana toward the truth waiting at White Heron Castle.' }],
+    opponent: { id: 'akane-tomoe', name: 'Master Akane Tomoe', title: 'Master of Courage', masterEncounter: true, opening: 'Move while fear is speaking.', pressured: 'Protect the choice you made.', counter: 'Stand again. The trial is not over.' },
+    complete: 'Ren earned the Courage Crest at the Crimson Pass.',
+    indices: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
   },
 ]
 
