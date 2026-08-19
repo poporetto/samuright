@@ -27,10 +27,10 @@ export type ChapterPart = {
   words: VocabularyWord[]
 }
 
-export type DialogueSpeaker = 'NARRATOR' | 'REN' | 'HANA' | 'JŪBEI' | 'SABURŌ' | 'ASHIGARU' | 'KICHIROU'
+export type DialogueSpeaker = 'NARRATOR' | 'REN' | 'HANA' | 'JŪBEI' | 'SABURŌ' | 'ASHIGARU' | 'KICHIROU' | 'SHIZURU' | 'HARU' | 'GENZOU'
 export type DialogueLine = { speaker: DialogueSpeaker; text: string }
 export type BattleOpponent = {
-  id: 'iwao-jubei' | 'saburo' | 'ashigaru-foot-soldier' | 'mizuno-kichiro'
+  id: 'iwao-jubei' | 'saburo' | 'ashigaru-foot-soldier' | 'mizuno-kichiro' | 'lady-shizuru' | 'takamine-harunobu' | 'genzo-masatsugu'
   name: string
   title: string
   masterEncounter?: boolean
@@ -464,6 +464,165 @@ const chapterTemplate: ChapterTemplate[] = [
     opponent: { id: 'iwao-jubei', name: 'Master Iwao Jūbei', title: 'Master of Discipline', masterEncounter: true, opening: 'The trial begins. Keep your rhythm, Ren.', pressured: 'Good. Do not let success make you careless.', counter: 'One mistake is only one mistake. Return to your center.' },
     complete: 'Ren earned the Discipline Crest and learned Still Mind: when his rhythm is true, the field briefly slows around him.',
     indices: [5, 7, 8, 14, 15, 16, 23, 26, 27, 28],
+  },
+  {
+    id: 'foxfire-inn', number: 5, title: 'The Foxfire Inn', japaneseTitle: '狐火宿',
+    description: 'Lady Shizuru teaches Ren to see through appearances and convincing decoys.',
+    parts: [
+      {
+        id: 'room-with-two-doors', number: 1, title: 'The Room with Two Doors', description: 'A smiling innkeeper tests whether Ren notices more than the meal in front of him.',
+        intro: [
+          { speaker: 'NARRATOR', text: 'At blue hour, Ren and Hana reached an inn glowing beneath red maples. Every lantern carried the shadow of a fox.' },
+          { speaker: 'HANA', text: 'A proper room, hot tea, and perhaps a small royal banq—one normal supper, please.' },
+          { speaker: 'SHIZURU', text: 'Welcome to the Foxfire Inn. I am Shizuru. Travellers who notice the right door sleep warmly; the others sweep my courtyard.' },
+          { speaker: 'REN', text: 'There are two doors? Great! We have twice the chance of picking one.' },
+          { speaker: 'HANA', text: 'Ren, I do not believe that is how chances work.' },
+          { speaker: 'SHIZURU', text: 'One door is painted. One is real. Look before enthusiasm carries you through a wall.' },
+          { speaker: 'REN', text: 'Right. Eyes first, forehead second. I can do that!' },
+        ],
+        epilogue: [
+          { speaker: 'NARRATOR', text: 'Ren stopped before the painted handle and found the true door reflected in a brass kettle.' },
+          { speaker: 'SHIZURU', text: 'Untidy reasoning, correct answer.' },
+          { speaker: 'REN', text: 'That counts! And I didn’t hit the wall.' },
+          { speaker: 'HANA', text: 'A flawless victory by Ren’s usual standards.' },
+          { speaker: 'SHIZURU', text: 'Eat. Your next lesson is already sitting beside the fire.' },
+        ],
+        opponent: { id: 'lady-shizuru', name: 'Lady Shizuru', title: 'Foxfire Innkeeper', opening: 'A convincing answer is not always the true one.', pressured: 'You noticed the detail I left out.', counter: 'The brightest decoy caught your eye.' },
+        complete: 'Ren found the true door and earned Shizuru’s guarded interest.',
+        indices: [90, 91, 92, 93, 94, 95, 96, 97, 98, 99],
+      },
+      {
+        id: 'stranger-by-firelight', number: 2, title: 'The Stranger by Firelight', description: 'A courteous traveller named Haru joins supper while Shizuru hides truth among half-truths.',
+        intro: [
+          { speaker: 'NARRATOR', text: 'Beside the hearth sat a young retainer in a pale travelling cloak, calmly sharing his fish with the inn cat.' },
+          { speaker: 'HARU', text: 'Haru. A travelling retainer with no lord worth mentioning.' },
+          { speaker: 'REN', text: 'I’m Ren! Future kensei. This is Hana, champion of falling into rivers.' },
+          { speaker: 'HANA', text: 'I slipped once. Twice at most. Haru, have we met at cour—somewhere common?' },
+          { speaker: 'HARU', text: 'I would remember.' },
+          { speaker: 'SHIZURU', text: 'Three travellers, three stories, and only two entirely honest names. Tell me, Ren—which words can you trust?' },
+          { speaker: 'REN', text: 'Hana’s my friend. I trust her even when I don’t understand her. For everything else, I’ll look closer.' },
+        ],
+        epilogue: [
+          { speaker: 'SHIZURU', text: 'You separated lies from fear without mistaking one for the other.' },
+          { speaker: 'HARU', text: 'A rare courtesy. Most swordsmen cut first and name the truth afterward.' },
+          { speaker: 'REN', text: 'That sounds backwards. If I’m wrong, I can’t uncut something.' },
+          { speaker: 'HANA', text: 'A surprisingly wise sentence. I shall have it entered into the royal—travel record.' },
+          { speaker: 'SHIZURU', text: 'Then perhaps you are ready to learn who owns this inn.' },
+        ],
+        opponent: { id: 'lady-shizuru', name: 'Lady Shizuru', title: 'Keeper of Half-Truths', opening: 'Look past the story you want to believe.', pressured: 'Good. Doubt without cruelty.', counter: 'Certainty makes an excellent blindfold.' },
+        complete: 'Ren saw the fear beneath Hana’s evasions and won Haru’s quiet respect.',
+        indices: [100, 101, 102, 103, 104, 105, 106, 107, 108, 109],
+      },
+      {
+        id: 'perception-crest', number: 3, title: 'The Perception Crest', description: 'Shizuru reveals herself as the Second Master and fills the inn with foxfire decoys.',
+        intro: [
+          { speaker: 'NARRATOR', text: 'At midnight, every lantern in the inn went dark. One by one, foxfire flames appeared around Shizuru.' },
+          { speaker: 'SHIZURU', text: 'Lady Shizuru, Second of the Five Masters. I keep the Perception Crest.' },
+          { speaker: 'REN', text: 'You’re the Master? I knew this inn felt too interesting to be normal!' },
+          { speaker: 'SHIZURU', text: 'You did not know. You hoped. Tonight you will learn the difference.' },
+          { speaker: 'HANA', text: 'Ren, ignore the flashy foxfire and observe carefully! Advice I shall also attempt to follow.' },
+          { speaker: 'HARU', text: 'A blade follows the eye. Make certain the eye follows truth.' },
+          { speaker: 'REN', text: 'Got it. No guessing, no rushing. Show me the real target!' },
+        ],
+        epilogue: [
+          { speaker: 'NARRATOR', text: 'The last false flame vanished. Ren’s blade stopped before the single lantern that cast a true shadow.' },
+          { speaker: 'SHIZURU', text: 'Perception is not suspicion. It is seeing clearly without surrendering kindness.' },
+          { speaker: 'REN', text: 'Then I’ll keep both—clear eyes and an open hand.' },
+          { speaker: 'SHIZURU', text: 'Ren, you have earned the Perception Crest.' },
+          { speaker: 'HANA', text: 'Two crests! Your pouch privileges remain under royal review.' },
+          { speaker: 'HARU', text: 'Travel north. A village without a lord has need of eyes like yours—and hands willing to help.' },
+          { speaker: 'NARRATOR', text: 'Before dawn, Haru departed alone. Hana watched him go with the uneasy feeling that she should have remembered his face.' },
+        ],
+        opponent: { id: 'lady-shizuru', name: 'Master Lady Shizuru', title: 'Master of Perception', masterEncounter: true, opening: 'Foxfire makes every false answer beautiful.', pressured: 'There. You saw the shadow behind the flame.', counter: 'Do not punish yourself. Ask what the decoy wanted you to miss.' },
+        complete: 'Ren earned the Perception Crest and learned to seek truth without turning trust into suspicion.',
+        indices: [110, 111, 112, 113, 114, 115, 116, 117, 118, 119],
+      },
+    ],
+    intro: [{ speaker: 'NARRATOR', text: 'Ren and Hana reached the lantern-lit Foxfire Inn, where every warm welcome concealed a test.' }],
+    epilogue: [{ speaker: 'NARRATOR', text: 'Ren left the inn carrying the Perception Crest and directions to a village without a lord.' }],
+    opponent: { id: 'lady-shizuru', name: 'Master Lady Shizuru', title: 'Master of Perception', masterEncounter: true, opening: 'Look beyond the brightest answer.', pressured: 'You are beginning to see.', counter: 'A decoy only needs one careless glance.' },
+    complete: 'Ren earned the Perception Crest at the Foxfire Inn.',
+    indices: [110, 111, 112, 113, 114, 115, 116, 117, 118, 119],
+  },
+  {
+    id: 'lordless-village', number: 6, title: 'The Village Without a Lord', japaneseTitle: '主なき里',
+    description: 'Ren learns that mastery means protecting people who cannot reward him.',
+    parts: [
+      {
+        id: 'empty-granary', number: 1, title: 'The Empty Granary', description: 'Ren and Hana meet Farmer Gen and help save a village’s damaged winter grain.',
+        intro: [
+          { speaker: 'NARRATOR', text: 'North of the inn, they found a farming village with no castle above it and almost no grain left below.' },
+          { speaker: 'GENZOU', text: 'Name’s Gen. If you came looking for a lord, ours fled before the roof did.' },
+          { speaker: 'REN', text: 'We came looking for a Master. But your granary looks more urgent.' },
+          { speaker: 'HANA', text: 'Those support beams are improperly placed. The provincial code requires— I read a pamphlet.' },
+          { speaker: 'GENZOU', text: 'A very detailed pamphlet, apparently.' },
+          { speaker: 'REN', text: 'Tell us what to carry. We can search after everyone’s food is safe.' },
+          { speaker: 'GENZOU', text: 'Strong answer. Let us see if your hands agree.' },
+        ],
+        epilogue: [
+          { speaker: 'NARRATOR', text: 'By sunset, the grain stood beneath a sound roof. Ren’s shoulders ached more than they had after Jūbei’s trial.' },
+          { speaker: 'REN', text: 'That was harder than sword practice.' },
+          { speaker: 'GENZOU', text: 'A sack of rice never steps aside for your dramatic finishing pose.' },
+          { speaker: 'HANA', text: 'His pose was excellent. His stacking was less excellent.' },
+          { speaker: 'GENZOU', text: 'Rest while you can. The men who emptied this granary will return.' },
+        ],
+        opponent: { id: 'genzo-masatsugu', name: 'Farmer Gen', title: 'Keeper of the Granary', opening: 'Strength is useful. Care is what keeps the grain unbroken.', pressured: 'Good. You noticed what needed saving first.', counter: 'Slow hands waste less than hurried pride.' },
+        complete: 'Ren and Hana repaired the granary and learned that armed collectors had taken most of the village’s food.',
+        indices: [120, 121, 122, 123, 124, 125, 126, 127, 128, 129],
+      },
+      {
+        id: 'unjust-tithe', number: 2, title: 'The Unjust Tithe', description: 'Hana challenges false taxes while Ren shields the villagers from armed collectors.',
+        intro: [
+          { speaker: 'NARRATOR', text: 'The collectors arrived at dawn wearing a lord’s crest that had been scraped from older armour.' },
+          { speaker: 'ASHIGARU', text: 'Emergency tithe. Half the remaining grain, by authority of the provincial court.' },
+          { speaker: 'HANA', text: 'That levy is unlawful. Article seven requires a sealed order and relief for failed harvests.' },
+          { speaker: 'REN', text: 'That was a very detailed pamphlet.' },
+          { speaker: 'HANA', text: 'I enjoy thorough pamphlets.' },
+          { speaker: 'ASHIGARU', text: 'Stand aside, girl. Farmers do not lecture soldiers on law.' },
+          { speaker: 'REN', text: 'She just did, and she sounded convincing. Leave the grain.' },
+          { speaker: 'GENZOU', text: 'Protect the people, Ren. Winning means nothing if the village pays for it.' },
+        ],
+        epilogue: [
+          { speaker: 'NARRATOR', text: 'Ren broke the collectors’ formation without letting a single torch reach the granary.' },
+          { speaker: 'ASHIGARU', text: 'This village is not worth the trouble!' },
+          { speaker: 'HANA', text: 'It was always worth the trouble. That is precisely why you chose it.' },
+          { speaker: 'REN', text: 'They’re gone. Is everyone all right?' },
+          { speaker: 'GENZOU', text: 'You checked the villagers before your victory. Now I know what I needed to know.' },
+        ],
+        opponent: { id: 'ashigaru-foot-soldier', name: 'False Collectors', title: 'The Unjust Tithe', opening: 'Move aside or share the village’s punishment!', pressured: 'Keep him away from the grain!', counter: 'His attention slipped—take the storehouse!' },
+        complete: 'Ren protected the villagers and their food while Hana exposed the collectors’ false authority.',
+        indices: [130, 131, 132, 133, 134, 135, 136, 137, 138, 139],
+      },
+      {
+        id: 'compassion-crest', number: 3, title: 'The Compassion Crest', description: 'Farmer Gen reveals the Third Master’s trial: victory without abandoning anyone.',
+        intro: [
+          { speaker: 'GENZOU', text: 'Genzou Masatsugu. Third of the Five Masters, keeper of the Compassion Crest.' },
+          { speaker: 'REN', text: 'You’re a Master too? Do all Masters pretend to have normal jobs?' },
+          { speaker: 'GENZOU', text: 'Farming is a normal job. Being called Master is the strange one.' },
+          { speaker: 'HANA', text: 'A refreshingly responsible philosophy. Certain lords should take notes.' },
+          { speaker: 'GENZOU', text: 'My trial is simple: hold your ground without forgetting who stands behind you.' },
+          { speaker: 'REN', text: 'That isn’t simple. But it’s the kind of swordsman I want to become.' },
+          { speaker: 'GENZOU', text: 'Then protect every opening, not only your own.' },
+        ],
+        epilogue: [
+          { speaker: 'NARRATOR', text: 'Ren’s last cut turned the final threat aside. Behind him, every basket of grain remained untouched.' },
+          { speaker: 'GENZOU', text: 'Compassion is not softness. It is carrying another person’s danger as if it were your own.' },
+          { speaker: 'REN', text: 'Then I’ll get strong enough to carry more.' },
+          { speaker: 'GENZOU', text: 'Ren, you have earned the Compassion Crest.' },
+          { speaker: 'HANA', text: 'Three crests! At this rate I shall require a larger royal—entirely common pouch.' },
+          { speaker: 'GENZOU', text: 'The Crimson Traveller waits at the mountain pass. She will test whether that kindness survives fear.' },
+          { speaker: 'NARRATOR', text: 'The village sent them onward with rice, repaired sandals, and a promise that Ren would always have a place at their fire.' },
+        ],
+        opponent: { id: 'genzo-masatsugu', name: 'Master Genzou Masatsugu', title: 'Master of Compassion', masterEncounter: true, opening: 'A guardian watches more than the enemy.', pressured: 'Good. Nothing behind you was forgotten.', counter: 'Recover. One mistake need not become someone else’s burden.' },
+        complete: 'Ren earned the Compassion Crest by protecting the village rather than chasing an empty victory.',
+        indices: [140, 141, 142, 143, 144, 145, 146, 147, 148, 149],
+      },
+    ],
+    intro: [{ speaker: 'NARRATOR', text: 'Ren and Hana reached a village whose missing lord had left ordinary people to face extraordinary hardship.' }],
+    epilogue: [{ speaker: 'NARRATOR', text: 'Ren left carrying the Compassion Crest and the village’s hope toward the Crimson Pass.' }],
+    opponent: { id: 'genzo-masatsugu', name: 'Master Genzou Masatsugu', title: 'Master of Compassion', masterEncounter: true, opening: 'Protect what matters.', pressured: 'Keep everyone in your sight.', counter: 'Recover and guard the opening.' },
+    complete: 'Ren earned the Compassion Crest in the village without a lord.',
+    indices: [140, 141, 142, 143, 144, 145, 146, 147, 148, 149],
   },
 ]
 
