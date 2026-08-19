@@ -208,22 +208,26 @@ export class GameScene extends Phaser.Scene {
 
   update(_time: number, delta: number) {
     if (this.finished) return
+    // Browsers can report a multi-second frame after a tab, screenshot, audio
+    // prompt, or iOS gesture temporarily suspends rendering. Never let that
+    // single frame teleport targets off-screen or consume an entire question.
+    const frameDelta = Math.min(Math.max(0, delta), 100)
     // WebKit can defer browser timers around touch handling. Count down from
     // rendered frames as the primary clock, with wall time and setTimeout as
     // independent fallbacks so a missed target can never strand the question.
     if (this.questionAdvanceQueued) {
-      this.questionAdvanceRemainingMs -= Math.max(0, delta)
+      this.questionAdvanceRemainingMs -= frameDelta
       if (this.questionAdvanceRemainingMs <= 0 || Date.now() >= this.questionAdvanceDeadline) this.runQuestionAdvance()
     }
     if (this.finished) return
     if (this.hitStopMs > 0) {
-      this.hitStopMs -= delta
+      this.hitStopMs -= frameDelta
       this.drawTrail()
       return
     }
-    this.elapsed += delta
-    this.questionElapsed += delta
-    this.stillMindMs = Math.max(0, this.stillMindMs - delta)
+    this.elapsed += frameDelta
+    this.questionElapsed += frameDelta
+    this.stillMindMs = Math.max(0, this.stillMindMs - frameDelta)
     this.secondsLeft = Math.max(0, this.roundSeconds - Math.floor(this.elapsed / 1000))
     if (this.secondsLeft <= 0 || this.lives <= 0) return this.completeRound()
 
@@ -233,9 +237,9 @@ export class GameScene extends Phaser.Scene {
     const width = this.scale.width
     const height = this.scale.height
     for (const target of [...this.targets]) {
-      target.container.x += target.vx * speedScale * delta / 1000
-      target.container.y += target.vy * speedScale * delta / 1000
-      target.container.rotation = Phaser.Math.Clamp(target.container.rotation + target.vx * 0.00000025 * delta, -0.052, 0.052)
+      target.container.x += target.vx * speedScale * frameDelta / 1000
+      target.container.y += target.vy * speedScale * frameDelta / 1000
+      target.container.rotation = Phaser.Math.Clamp(target.container.rotation + target.vx * 0.00000025 * frameDelta, -0.052, 0.052)
       if (target.container.x < -180 || target.container.x > width + 180 || target.container.y > height + 100) {
         if (target.correct && !target.resolved) this.resolveMiss()
         target.container.destroy()

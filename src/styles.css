@@ -153,6 +153,13 @@ button:disabled { cursor: not-allowed; }
 .journey-header .brand--small { margin-top: max(5vh, 34px); }
 .journey-header .eyebrow { margin: 28px 0 8px; }
 .journey-header h1 { margin: 0; font-family: 'Noto Serif JP', serif; font-size: 28px; }
+.journey-complete, .campaign-finale { position: relative; z-index: 5; display: grid; grid-template-columns: 62px 1fr; align-items: center; gap: 14px; padding: 15px 16px; text-align: left; border: 1px solid rgba(198,161,91,.55); border-radius: 19px; background: linear-gradient(135deg,rgba(255,251,239,.96),rgba(247,232,196,.94)); box-shadow: 0 12px 30px rgba(112,78,28,.1); }
+.journey-complete { margin: 16px 3px 4px; }
+.journey-complete > b, .campaign-finale > b { display: grid; place-items: center; width: 58px; height: 58px; color: #fff8e8; border-radius: 50%; background: #b98a37; font-family: 'Noto Serif JP',serif; font-size: 20px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); }
+.journey-complete span, .campaign-finale span { display: grid; }
+.journey-complete small, .campaign-finale small { color: #a36f1d; font-size: 8px; font-weight: 800; letter-spacing: .12em; }
+.journey-complete strong, .campaign-finale strong { margin-top: 3px; font-family: 'Noto Serif JP',serif; font-size: 15px; }
+.journey-complete p, .campaign-finale p { margin: 4px 0 0; color: #756a59; font-size: 10px; line-height: 1.4; }
 .player-rank { position: relative; z-index: 5; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin: 13px 3px -23px; padding: 9px 12px; border: 1px solid #e4ddd2; border-radius: 14px; background: rgba(255,255,255,.88); }
 .player-rank span { display: grid; }.player-rank b { color: #a77925; font-size: 9px; letter-spacing: .08em; }.player-rank small { font-family: 'Noto Serif JP', serif; font-size: 11px; }
 .player-rank > i,.rank-card > i,.reward-card > i { display: block; height: 5px; overflow: hidden; border-radius: 5px; background: #e9e3da; }.player-rank em,.rank-card em,.reward-card em { display: block; height: 100%; background: linear-gradient(90deg,#c6a15b,#e4513d); }
@@ -263,6 +270,7 @@ button:disabled { cursor: not-allowed; }
 .settings-card { margin-top: 25px; padding: 24px; border: 1px solid #e4ddd2; border-radius: 22px; background: white; }.settings-card h2 { margin-top: 0; }.settings-card p { color: #777b78; font-size: 13px; line-height: 1.5; }
 .reward-card { position: relative; z-index: 4; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px 14px; margin: 8px 0 14px; padding: 13px 16px; text-align: left; border: 1px solid rgba(198,161,91,.42); border-radius: 16px; background: #fffaf0; }.reward-card span { display: grid; }.reward-card span b { color: #e4513d; font-size: 18px; }.reward-card span small { color: #a77925; font-size: 8px; font-weight: 800; }.reward-card > i { align-self: center; }.reward-card > strong { grid-column: 1 / -1; color: #777b78; font-size: 10px; }
 .achievement-toast { position: relative; z-index: 4; display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 12px; margin: 9px 0; padding: 10px 14px; text-align: left; border-radius: 16px; color: white; background: #303735; box-shadow: 0 10px 24px rgba(32,35,34,.15); }.achievement-toast > b { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: #4a3920; background: #e7c77e; font-family: 'Noto Serif JP',serif; }.achievement-toast span { display: grid; }.achievement-toast small { color: #e7c77e; font-size: 8px; font-weight: 800; letter-spacing: .12em; }.achievement-toast strong { margin-top: 2px; }
+.campaign-finale { margin: 10px 0 14px; }
 .danger-button,.reset-confirm button { width: 100%; margin-top: 12px; padding: 14px; border-radius: 13px; font-size: 11px; font-weight: 800; letter-spacing: .08em; }.danger-button { color: #e4513d; border: 1px solid rgba(228,81,61,.35); background: transparent; }.reset-confirm button:first-of-type { color: white; border: 0; background: #e4513d; }.reset-confirm button:last-of-type { color: #666; border: 0; background: #eeeae3; }
 .level-change-button { width: 100%; margin-top: 8px; padding: 14px; color: #a77925; border: 1px solid rgba(198,161,91,.45); border-radius: 13px; background: #faf6ec; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 
