@@ -118,10 +118,12 @@ button:disabled { cursor: not-allowed; }
 .companion-mascot--clumsy { animation: hanaClumsy .66s ease-in-out; }
 .companion-mascot--incorrect { animation: hanaConcern .66s ease-out; }
 .companion-mascot--missed { animation: hanaMissed .72s ease-out; }
+.companion-mascot--goofy { animation: hanaGoofyMoment .42s ease-out; }
 @keyframes hanaCheer { 45% { transform: translate(6px,-8px) rotate(2deg) scale(1.035); } }
 @keyframes hanaClumsy { 32% { transform: translate(7px,-3px) rotate(7deg); } 62% { transform: translate(1px,-6px) rotate(-4deg); } }
 @keyframes hanaConcern { 30% { transform: translate(4px,-2px) rotate(-2deg); } 66% { transform: translate(2px,1px) rotate(1deg); } }
 @keyframes hanaMissed { 28% { transform: translate(5px,1px) rotate(2deg); } 58% { transform: translate(1px,3px) rotate(-1.5deg); } }
+@keyframes hanaGoofyMoment { 0% { opacity: .2; transform: translateY(4px) scale(.97); } 100% { opacity: 1; transform: none; } }
 
 .results-screen { overflow-y: auto; padding: 1px 24px max(24px, env(safe-area-inset-bottom)); text-align: center; }
 .results-screen > .eyebrow { margin-top: 30px; }
