@@ -6,6 +6,7 @@ export type VocabularyWord = {
 
 export type JlptLevel = 'N5' | 'N4' | 'N3' | 'N2' | 'N1'
 export type RunMode = 'chapter' | 'dojo' | 'focus' | 'daily'
+import type { CrestId } from './crests'
 
 export type RoundSummary = {
   score: number
@@ -35,6 +36,9 @@ export type HudState = {
   resolve: number
   maxResolve: number
   battlePhase: 1 | 2 | 3
+  crestCharges: number
+  availableCrests: CrestId[]
+  usedCrests: CrestId[]
 }
 
 export type Feedback = { type: 'correct' | 'incorrect' | 'missed'; message: string }

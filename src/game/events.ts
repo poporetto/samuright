@@ -1,4 +1,5 @@
 import type { Feedback, HudState, RoundSummary, WordOutcome } from './types'
+import type { CrestId } from './crests'
 
 type Events = {
   hud: HudState
@@ -7,6 +8,7 @@ type Events = {
   outcome: WordOutcome
   mascot: { state: 'idle' | 'track' | 'slash'; dx?: number; dy?: number }
   battle: { type: 'phase' | 'ability'; phase?: 1 | 2 | 3; title: string; message: string }
+  crest: { crest: CrestId }
 }
 
 type Listener<K extends keyof Events> = (value: Events[K]) => void

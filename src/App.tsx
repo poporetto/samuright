@@ -8,13 +8,14 @@ import type { Feedback, HudState, JlptLevel, RoundSummary, RunMode, VocabularyWo
 import { emptyProfile, masteryLabel, updateMastery, wordKey, type LearningProfile, type SessionRecord } from './game/learning'
 import { JLPT_LEVELS, JLPT_VOCABULARY } from './data/jlptVocabulary'
 import { ACHIEVEMENTS, dateKey, emptyProgression, rankForXp, rewardRound, type PlayerProgression } from './game/progression'
+import { CRESTS, unlockedCrests, type CrestId } from './game/crests'
 
 type Screen = 'start' | 'level' | 'journey' | 'dojo' | 'dialogue' | 'game' | 'epilogue' | 'results' | 'review' | 'wordbook' | 'history' | 'achievements' | 'settings'
 type Progress = { unlocked: number; completed: string[]; completedParts: string[]; bestScores: Record<string, number>; companionMet: boolean }
 const defaultProgress: Progress = { unlocked: 1, completed: [], completedParts: [], bestScores: {}, companionMet: false }
-const initialHud: HudState = { score: 0, lives: STARTING_LIVES, combo: 0, secondsLeft: ROUND_SECONDS, current: { japanese: '食べる', reading: 'たべる', meaning: 'to eat' }, prompt: '食べる', promptLabel: 'Slash the meaning of', promptReading: 'たべる', mode: 'japanese-meaning', focus: STORY_FOCUS, maxFocus: STORY_FOCUS, resolve: STORY_RESOLVE, maxResolve: STORY_RESOLVE, battlePhase: 1 }
-const mascotAnimation = `${import.meta.env.BASE_URL}assets/mascot/ronin-pixel-single-sword-v12-strip.png`
-const MASCOT_FRAME_COUNT = 20
+const initialHud: HudState = { score: 0, lives: STARTING_LIVES, combo: 0, secondsLeft: ROUND_SECONDS, current: { japanese: '食べる', reading: 'たべる', meaning: 'to eat' }, prompt: '食べる', promptLabel: 'Slash the meaning of', promptReading: 'たべる', mode: 'japanese-meaning', focus: STORY_FOCUS, maxFocus: STORY_FOCUS, resolve: STORY_RESOLVE, maxResolve: STORY_RESOLVE, battlePhase: 1, crestCharges: 2, availableCrests: [], usedCrests: [] }
+const mascotAnimation = `${import.meta.env.BASE_URL}assets/mascot/ronin-pixel-single-sword-v13-strip.png`
+const MASCOT_FRAME_COUNT = 28
 const companionAnimation = `${import.meta.env.BASE_URL}assets/mascot/companion-core-smooth-v5-strip.png`
 const companionGoofyAnimation = `${import.meta.env.BASE_URL}assets/mascot/companion-goofy-downtime-v11-centered-strip.png`
 const companionReactionAnimation = `${import.meta.env.BASE_URL}assets/mascot/companion-reactions-v2-centered-strip.png`
@@ -28,6 +29,7 @@ const castArtwork: Record<string, string> = {
   'iwao-jubei': `${import.meta.env.BASE_URL}assets/characters/cast/iwao-jubei.webp`,
   saburo: `${import.meta.env.BASE_URL}assets/characters/cast/saburo.webp`,
   'ashigaru-foot-soldier': `${import.meta.env.BASE_URL}assets/characters/cast/ashigaru-foot-soldier.webp`,
+  'false-collector': `${import.meta.env.BASE_URL}assets/characters/cast/false-collector.webp`,
   'mizuno-kichiro': `${import.meta.env.BASE_URL}assets/characters/cast/mizuno-kichiro.webp`,
   'lady-shizuru': `${import.meta.env.BASE_URL}assets/characters/cast/lady-shizuru.webp`,
   'takamine-harunobu': `${import.meta.env.BASE_URL}assets/characters/cast/takamine-harunobu.webp`,
@@ -42,6 +44,7 @@ const speakerArtwork: Partial<Record<string, string>> = {
   JŪBEI: castArtwork['iwao-jubei'],
   SABURŌ: castArtwork.saburo,
   ASHIGARU: castArtwork['ashigaru-foot-soldier'],
+  'FALSE COLLECTOR': castArtwork['false-collector'],
   KICHIROU: castArtwork['mizuno-kichiro'],
   SHIZURU: castArtwork['lady-shizuru'],
   HARU: castArtwork['takamine-harunobu'],
@@ -66,11 +69,11 @@ const chapterBackgrounds: Record<number, string> = {
 }
 
 const storyCrests: Partial<Record<number, { kanji: string; title: string }>> = {
-  4: { kanji: '律', title: 'Discipline' },
-  5: { kanji: '観', title: 'Perception' },
-  6: { kanji: '慈', title: 'Compassion' },
-  7: { kanji: '勇', title: 'Courage' },
-  8: { kanji: '智', title: 'Wisdom' },
+  4: { kanji: '風', title: 'Wind' },
+  5: { kanji: '火', title: 'Fire' },
+  6: { kanji: '地', title: 'Earth' },
+  7: { kanji: '水', title: 'Water' },
+  8: { kanji: '空', title: 'Void' },
 }
 
 const saveLocal = (key: string, value: unknown) => {
@@ -230,8 +233,9 @@ function CompanionMascot({ reaction }: { reaction: CompanionReaction }) {
 function Mascot({ state, dx = 0, dy = 0 }: { state: 'idle' | 'track' | 'slash'; dx?: number; dy?: number }) {
   const [frame, setFrame] = useState(0)
   const speed = Math.hypot(dx, dy)
-  const direction = Math.abs(dy) > Math.abs(dx) * .72 ? (dy < 0 ? 'up' : 'down') : dx < 0 ? 'left' : 'right'
-  const directionStart = { left: 4, right: 8, up: 12, down: 16 }[direction]
+  const vertical = Math.abs(dy) > Math.abs(dx) * .72
+  const direction = vertical ? (dy < 0 ? (dx > 0 ? 'upRight' : 'up') : (dx > 0 ? 'downRight' : 'down')) : dx < 0 ? 'left' : 'right'
+  const directionStart = { left: 4, right: 8, up: 12, down: 16, upRight: 20, downRight: 24 }[direction]
   useEffect(() => {
     if (state === 'track') { setFrame(speed < 2 ? 1 : directionStart + (speed > 24 ? 1 : 0)); return }
     const sequence = state === 'slash' ? [directionStart, directionStart + 1, directionStart + 2, directionStart + 3] : [0, 1, 2, 1, 3, 1]
@@ -352,7 +356,7 @@ function DialogueScreen({ chapter, lines, onContinue, phase = 'CHAPTER' }: { cha
   </main>
 }
 
-function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onComplete }: { sound: boolean; chapter: Chapter; words: VocabularyWord[]; profile: LearningProfile; runMode: RunMode; companionMet: boolean; onComplete: (result: RoundSummary) => void }) {
+function GameScreen({ sound, chapter, words, profile, runMode, companionMet, availableCrests, onComplete }: { sound: boolean; chapter: Chapter; words: VocabularyWord[]; profile: LearningProfile; runMode: RunMode; companionMet: boolean; availableCrests: CrestId[]; onComplete: (result: RoundSummary) => void }) {
   const host = useRef<HTMLDivElement>(null); const game = useRef<Phaser.Game | null>(null)
   const companionTimer = useRef<number | null>(null); const mascotTimer = useRef<number | null>(null); const opponentTimer = useRef<number | null>(null); const battleTimer = useRef<number | null>(null); const correctCheerCount = useRef(0)
   const [hud, setHud] = useState(initialHud); const [feedback, setFeedback] = useState<Feedback | null>(null)
@@ -415,13 +419,14 @@ function GameScreen({ sound, chapter, words, profile, runMode, companionMet, onC
         mascotTimer.current = null
       }, MASCOT_SLASH_RESET_MS)
     })
-    if (host.current) game.current = createGame(host.current, sound, words, profile, runMode, runMode === 'chapter' ? chapter.opponent.id : undefined, masterEncounter)
+    if (host.current) game.current = createGame(host.current, sound, words, profile, runMode, runMode === 'chapter' ? chapter.opponent.id : undefined, masterEncounter, availableCrests)
     return () => { offHud(); offFeedback(); offComplete(); offBattle(); offMascot(); if (companionTimer.current !== null) window.clearTimeout(companionTimer.current); if (mascotTimer.current !== null) window.clearTimeout(mascotTimer.current); if (opponentTimer.current !== null) window.clearTimeout(opponentTimer.current); if (battleTimer.current !== null) window.clearTimeout(battleTimer.current); game.current?.destroy(true); game.current = null }
-  }, [chapter.opponent.counter, chapter.opponent.opening, chapter.opponent.pressured, masterEncounter, onComplete, profile, runMode, showCompanion, sound, words])
+  }, [availableCrests, chapter.opponent.counter, chapter.opponent.opening, chapter.opponent.pressured, masterEncounter, onComplete, profile, runMode, showCompanion, sound, words])
   return <main className={`screen game-screen game-screen--${runMode}`}><div ref={host} className="game-canvas" />
     <header className="hud"><span>✦ <b>{hud.score.toLocaleString()}</b></span><span className="combo">×{hud.combo}</span><span className="hud-vitals"><small><b>FOCUS</b><i><em style={{ width: `${hud.focus / hud.maxFocus * 100}%` }} /></i></small>{runMode === 'chapter' && <small><b>{chapter.opponent.hidden ? 'PRACTICE' : `${masterEncounter ? `P${hud.battlePhase}` : chapter.number === 1 ? 'PRACTICE' : 'ENCOUNTER'} · ${chapter.opponent.name.toUpperCase()}`}</b><i><em className="resolve-fill" style={{ width: `${hud.resolve / hud.maxResolve * 100}%` }} /></i></small>}</span><span>◷ <b>{formatTime(hud.secondsLeft)}</b></span></header>
     <div className="chapter-chip">{runMode === 'focus' ? 'Focus Training' : runMode === 'daily' ? 'Daily Challenge' : runMode === 'dojo' ? 'Dojo Mode' : chapter.title}</div>
     <section className={`question question--${hud.mode}`} aria-live="polite"><p>{hud.promptLabel}</p><h2 lang={hud.mode === 'meaning-japanese' ? 'en' : 'ja'}>{hud.prompt}</h2>{hud.promptReading && <small>{hud.promptReading}</small>}</section>
+    {hud.availableCrests.length > 0 && <nav className="crest-rail" aria-label={`Crest techniques. ${hud.crestCharges} charges remaining`}><small>{hud.crestCharges} / 2</small>{hud.availableCrests.map((crest) => { const detail = CRESTS[crest]; const used = hud.usedCrests.includes(crest); return <button key={crest} type="button" className={`crest-button crest-button--${crest} ${used ? 'is-used' : ''}`} disabled={used || hud.crestCharges <= 0} onClick={() => gameEvents.emit('crest', { crest })} aria-label={`${detail.name} Crest: ${detail.technique}. ${detail.shortEffect}. ${used ? 'Already used' : 'Tap to activate'}`}><b lang="ja">{detail.kanji}</b><span>{detail.name}</span></button> })}</nav>}
     {runMode === 'chapter' && !chapter.opponent.hidden && opponentLine && <aside key={opponentLine} className="battle-opponent" aria-live="polite"><div className="battle-opponent__portrait"><img src={castArtwork[chapter.opponent.id]} alt={chapter.opponent.name} /></div><div className="battle-opponent__bubble"><span>{chapter.opponent.name}</span><small>{chapter.opponent.title}</small><p>{opponentLine}</p></div></aside>}
     {battleCue && <div key={battleCue.title} className="battle-cue" aria-live="assertive"><b>{battleCue.title}</b><span>{battleCue.message}</span></div>}
     {feedback && <div className={`feedback feedback--${feedback.type}`}>{feedback.type === 'correct' ? <><span lang="ja">正解</span><small>CORRECT</small></> : feedback.message}</div>}{showCompanion && <CompanionMascot key={`${companionReaction.kind}-${companionReaction.cue}`} reaction={companionReaction} />}<Mascot {...mascot} />
@@ -552,5 +557,5 @@ export default function App() {
   if (screen === 'history') return <HistoryScreen sessions={learning.sessions} chapters={chapters} onBack={() => setScreen('journey')} />
   if (screen === 'achievements') return <AchievementsScreen player={player} onBack={() => setScreen('journey')} onHistory={() => setScreen('history')} />
   if (screen === 'settings') return <SettingsScreen level={jlptLevel} onChangeLevel={() => setScreen('level')} onBack={() => setScreen('journey')} onReset={resetAll} />
-  return <GameScreen sound={sound} chapter={activeStory} words={runMode === 'chapter' ? activeStory.words : reviewWords} profile={learning} runMode={runMode} companionMet={progress.companionMet} onComplete={complete} />
+  return <GameScreen sound={sound} chapter={activeStory} words={runMode === 'chapter' ? activeStory.words : reviewWords} profile={learning} runMode={runMode} companionMet={progress.companionMet} availableCrests={unlockedCrests(progress.completedParts)} onComplete={complete} />
 }

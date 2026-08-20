@@ -32,7 +32,7 @@ button:disabled { cursor: not-allowed; }
 .swipe-hint { margin-top: 28px; font-size: 13px; }
 .swipe-hint span { color: #b38331; display: block; font-size: 28px; }
 .hero-mascot, .result-mascot { position: absolute; right: -8%; bottom: 0; z-index: 2; width: min(70%, 320px); aspect-ratio: 1; opacity: .95; pointer-events: none; overflow: hidden; }
-.hero-mascot div, .result-mascot div { width: 100%; height: 100%; background-position: 0 center; background-size: 2000% 100%; background-repeat: no-repeat; image-rendering: auto; }
+.hero-mascot div, .result-mascot div { width: 100%; height: 100%; background-position: 0 center; background-size: 2800% 100%; background-repeat: no-repeat; image-rendering: auto; }
 
 .level-screen { overflow-y: auto; padding: 1px 20px max(28px, env(safe-area-inset-bottom)); }
 .level-screen > header { position: relative; z-index: 3; margin: 18px 12px 24px; text-align: center; }
@@ -81,6 +81,12 @@ button:disabled { cursor: not-allowed; }
 .question h2 { font-family: 'Noto Serif JP', 'Noto Sans JP', serif; font-size: clamp(56px, 17vw, 88px); line-height: 1; margin: 8px 0 0; }
 .question--meaning-japanese h2 { max-width: 330px; margin: 17px auto 0; font-family: Inter, sans-serif; font-size: clamp(34px, 10vw, 50px); line-height: 1.15; }
 .question small { color: #a77925; letter-spacing: .2em; }
+.crest-rail { position: absolute; z-index: 74; top: max(132px, calc(114px + env(safe-area-inset-top))); left: max(7px, env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.crest-rail > small { display: grid; place-items: center; min-width: 34px; padding: 3px 5px; color: #7d6236; border: 1px solid rgba(166,121,46,.35); border-radius: 999px; background: rgba(255,252,245,.9); font-size: 8px; font-weight: 800; letter-spacing: .08em; backdrop-filter: blur(6px); }
+.crest-button { position: relative; display: grid; place-items: center; width: 46px; height: 46px; padding: 0; color: #55442d; border: 1px solid rgba(145,105,44,.48); border-radius: 50%; background: rgba(255,252,245,.94); box-shadow: 0 4px 12px rgba(66,50,27,.1), inset 0 0 0 2px rgba(255,255,255,.65); touch-action: manipulation; }
+.crest-button b { font-family: 'Noto Serif JP',serif; font-size: 19px; line-height: 1; }.crest-button span { margin-top: -3px; font-size: 6px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.crest-button--wind { color: #63806c; }.crest-button--fire { color: #d64c35; }.crest-button--earth { color: #9a702d; }.crest-button--water { color: #397da0; }.crest-button--void { color: #4f4b56; }
+.crest-button:not(:disabled):active { transform: scale(.9); }.crest-button.is-used, .crest-button:disabled { opacity: .3; filter: grayscale(1); }.crest-button.is-used::after { position: absolute; content: ''; width: 34px; height: 2px; background: currentColor; transform: rotate(-35deg); }
 .feedback { position: absolute; z-index: 80; left: 50%; top: 48%; transform: translate(-50%, -50%); border-radius: 999px; padding: 12px 22px; color: white; font-weight: 800; letter-spacing: .12em; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
 .feedback--correct { display: grid; place-content: center; width: 104px; height: 122px; padding: 9px; color: #d9472f; border: 5px double currentColor; border-radius: 48% 44% 46% 51% / 45% 51% 47% 50%; background: rgba(255,249,235,.86); box-shadow: inset 0 0 0 2px rgba(217,71,47,.13), 0 7px 18px rgba(111,52,31,.12); transform: translate(-50%, -50%) rotate(-3deg); animation: hankoStamp .3s cubic-bezier(.2,.9,.25,1.2) both; isolation: isolate; }
 .feedback--correct::before, .feedback--correct::after { position: absolute; z-index: -1; content: ''; border-radius: 50%; background: currentColor; opacity: .13; }
@@ -107,11 +113,11 @@ button:disabled { cursor: not-allowed; }
 .mascot::after { position: absolute; z-index: -1; content: ''; left: 50%; bottom: 7px; width: 96px; height: 18px; border-radius: 50%; background: radial-gradient(ellipse, rgba(44,39,31,.3), rgba(74,60,38,.09) 56%, transparent 74%); transform: translateX(-50%); filter: blur(3px); }
 .mascot--track { transform: translateX(-50%) rotate(var(--mascot-angle, -3deg)); }
 .mascot--slash { animation: mascotSlash .42s ease-out; }
-.mascot__sprite { position: relative; z-index: 1; width: 100%; height: 100%; overflow: hidden; background-repeat: no-repeat; background-size: 2000% 100%; image-rendering: auto; transform-origin: center; filter: drop-shadow(0 5px 4px rgba(45,37,26,.18)); }
+.mascot__sprite { position: relative; z-index: 1; width: 100%; height: 100%; overflow: hidden; background-repeat: no-repeat; background-size: 2800% 100%; image-rendering: auto; transform-origin: center; filter: drop-shadow(0 5px 4px rgba(45,37,26,.18)); }
 @keyframes mascotSlash { 38% { transform: translateX(-50%) translateY(-7px) rotate(-7deg) scale(1.055); } 100% { transform: translateX(-50%); } }
 .companion-portrait { width: 190px; height: 190px; overflow: hidden; pointer-events: none; }
 .companion-portrait > div { width: 100%; height: 100%; background-repeat: no-repeat; background-size: 2000% 100%; image-rendering: auto; }
-.companion-mascot { position: absolute; z-index: 64; left: -10px; bottom: max(5px, env(safe-area-inset-bottom)); width: 124px; height: 124px; overflow: visible; transform-origin: 25% 100%; filter: drop-shadow(0 5px 4px rgba(45,37,26,.15)); }
+.companion-mascot { position: absolute; z-index: 64; left: -10px; bottom: max(31px, calc(env(safe-area-inset-bottom) + 26px)); width: 124px; height: 124px; overflow: visible; transform-origin: 25% 100%; filter: drop-shadow(0 5px 4px rgba(45,37,26,.15)); }
 .companion-mascot::after { position: absolute; z-index: -1; content: ''; left: 49%; bottom: 4px; width: 58px; height: 11px; border-radius: 50%; background: radial-gradient(ellipse, rgba(44,39,31,.25), rgba(74,60,38,.07) 58%, transparent 75%); transform: translateX(-50%); filter: blur(2px); }
 .companion-mascot > div { position: relative; z-index: 1; overflow: hidden; }
 .companion-mascot--cheer { animation: hanaCheer .5s ease-out; }
@@ -195,7 +201,7 @@ button:disabled { cursor: not-allowed; }
 .chapter-part-node em { color: #9a8c78; font-size: 7px; font-style: normal; letter-spacing: .06em; }
 .chapter-part-node > b { color: #a77925; font-size: 18px; }
 .pixel-portrait { width: 190px; height: 190px; overflow: hidden; pointer-events: none; }
-.pixel-portrait div { width: 100%; height: 100%; background-repeat: no-repeat; background-size: 2000% 100%; image-rendering: auto; }
+.pixel-portrait div { width: 100%; height: 100%; background-repeat: no-repeat; background-size: 2800% 100%; image-rendering: auto; }
 .journey-mascot { position: absolute; z-index: 2; right: -25px; bottom: -14px; opacity: .16; }
 .learning-nav { position: relative; z-index: 5; display: grid; grid-template-columns: 1.3fr 1fr 45px; gap: 8px; margin-top: 14px; }
 .learning-nav button { min-height: 42px; color: #666b68; border: 1px solid #e4ddd2; border-radius: 14px; background: rgba(255,255,255,.86); font-size: 9px; font-weight: 800; letter-spacing: .09em; }
@@ -282,4 +288,5 @@ button:disabled { cursor: not-allowed; }
 @media (max-height: 700px) { .level-screen > header { margin-block: 5px 12px; } .level-list { gap: 6px; } .level-list button { min-height: 67px; } .level-list button > b { width: 50px; height: 50px; } }
 @media (max-width: 360px) { .companion-mascot { left: -12px; width: 108px; height: 108px; } .dialogue-screen { padding-inline: max(16px, env(safe-area-inset-left)); } .dialogue-box { padding-inline: 18px; } }
 @media (orientation: landscape) and (max-height: 520px) { .question { right: 235px; } .question h2 { font-size: clamp(48px, 13vh, 70px); } .question--meaning-japanese h2 { font-size: clamp(30px, 9vh, 44px); } .battle-opponent { right: max(8px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); } .mascot { width: 180px; height: 180px; } .companion-mascot { width: 98px; height: 98px; } }
+@media (orientation: landscape) and (max-height: 520px) { .crest-rail { top: max(86px, calc(68px + env(safe-area-inset-top))); gap: 3px; }.crest-rail > small { min-width: 30px; }.crest-button { width: 38px; height: 38px; }.crest-button b { font-size: 16px; }.crest-button span { font-size: 5px; } }
 @media (prefers-reduced-motion: reduce) { .dialogue-art, .companion-mascot, .mascot--slash { animation: none; } .mascot { transition: none; } }

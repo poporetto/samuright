@@ -5,6 +5,7 @@ import { answerFor, makeAnswers, pointsFor, ROUND_SECONDS, shuffle, STARTING_LIV
 import type { QuestionMode, RunMode, VocabularyWord, WordOutcome } from './types'
 import { haptic, playCue } from './feedback'
 import { adaptiveDeck, chooseMode, emptyProfile, type LearningProfile } from './learning'
+import { CRESTS, type CrestId } from './crests'
 
 type Target = {
   container: Phaser.GameObjects.Container
@@ -16,6 +17,11 @@ type Target = {
   width: number
   height: number
   fontSize: number
+  label: Phaser.GameObjects.Text
+  effect?: Phaser.GameObjects.Graphics
+  effectPhase: number
+  shakeX: number
+  shakeY: number
 }
 
 type Point = { x: number; y: number }
@@ -60,18 +66,28 @@ export class GameScene extends Phaser.Scene {
   private opponentId = ''
   private masterEncounter = false
   private battlePhase: 1 | 2 | 3 = 1
-  private stillMindMs = 0
-  private stillMindUsed = false
+  private availableCrests: CrestId[] = []
+  private usedCrests: CrestId[] = []
+  private crestCharges = 2
+  private questionNumber = 0
+  private fireTurns = 0
+  private earthTurns = 0
+  private waterTurns = 0
+  private currentEarth = false
+  private currentWater = false
+  private currentMasterTechnique: CrestId | null = null
+  private offCrest?: () => void
 
   constructor() { super('game') }
 
-  init(data: { soundEnabled?: boolean; words?: VocabularyWord[]; profile?: LearningProfile; mode?: RunMode; opponentId?: string; masterEncounter?: boolean }) {
+  init(data: { soundEnabled?: boolean; words?: VocabularyWord[]; profile?: LearningProfile; mode?: RunMode; opponentId?: string; masterEncounter?: boolean; availableCrests?: CrestId[] }) {
     this.soundEnabled = data.soundEnabled ?? true
     this.wordPool = data.words?.length ? data.words : VOCABULARY
     this.learningProfile = data.profile ?? emptyProfile()
     this.runMode = data.mode ?? 'chapter'
     this.opponentId = data.opponentId ?? ''
     this.masterEncounter = data.masterEncounter ?? false
+    this.availableCrests = data.availableCrests ?? []
     this.roundSeconds = this.runMode === 'chapter' ? 90 : this.runMode === 'focus' ? 45 : this.runMode === 'daily' ? 60 : ROUND_SECONDS
     this.maxFocus = this.runMode === 'chapter' ? STORY_FOCUS : STARTING_LIVES
     this.lives = this.maxFocus
@@ -79,7 +95,9 @@ export class GameScene extends Phaser.Scene {
     this.resolve = this.maxResolve
     this.score = 0; this.combo = 0; this.bestCombo = 0; this.correct = 0; this.attempted = 0
     this.elapsed = 0; this.outcomes = []; this.incorrect = []; this.finished = false; this.hitStopMs = 0
-    this.battlePhase = 1; this.stillMindMs = 0; this.stillMindUsed = false
+    this.battlePhase = 1; this.usedCrests = []; this.crestCharges = 2; this.questionNumber = 0
+    this.fireTurns = 0; this.earthTurns = 0; this.waterTurns = 0; this.currentEarth = false; this.currentWater = false
+    this.currentMasterTechnique = this.masterEncounter ? this.crestForOpponent() : null
     this.questionAdvanceQueued = false; this.questionAdvanceDeadline = 0; this.questionAdvanceRemainingMs = 0; this.questionAdvanceCallback = null
     this.secondsLeft = this.roundSeconds
   }
@@ -96,12 +114,16 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointercancel', this.onPointerCancel, this)
     this.bindNativeTouchInput()
     this.events.once('shutdown', this.handleShutdown, this)
+    this.offCrest = gameEvents.on('crest', ({ crest }) => this.activateCrest(crest))
     this.nextQuestion()
+    if (this.currentMasterTechnique) this.time.delayedCall(180, () => this.announceMasterTechnique(this.currentMasterTechnique!))
   }
 
   private handleShutdown() {
     this.unbindNativeTouchInput()
     this.clearQuestionAdvanceTimer()
+    this.offCrest?.()
+    this.offCrest = undefined
   }
 
   /**
@@ -227,18 +249,36 @@ export class GameScene extends Phaser.Scene {
     }
     this.elapsed += frameDelta
     this.questionElapsed += frameDelta
-    this.stillMindMs = Math.max(0, this.stillMindMs - frameDelta)
     this.secondsLeft = Math.max(0, this.roundSeconds - Math.floor(this.elapsed / 1000))
     if (this.secondsLeft <= 0 || this.lives <= 0) return this.completeRound()
 
     const storyPressure = this.runMode === 'chapter' && this.masterEncounter ? this.battlePhase === 3 ? 1.18 : this.battlePhase === 2 ? 1.08 : 1 : 1
-    const stillMindScale = this.stillMindMs > 0 ? .52 : 1
-    const speedScale = (1 + Math.min(this.elapsed / (this.roundSeconds * 1000), 1) * .65) * storyPressure * stillMindScale
+    const playerWaterScale = this.currentWater ? .5 : 1
+    const speedScale = (1 + Math.min(this.elapsed / (this.roundSeconds * 1000), 1) * .65) * storyPressure * playerWaterScale
     const width = this.scale.width
     const height = this.scale.height
     for (const target of [...this.targets]) {
-      target.container.x += target.vx * speedScale * frameDelta / 1000
-      target.container.y += target.vy * speedScale * frameDelta / 1000
+      target.container.x -= target.shakeX
+      target.container.y -= target.shakeY
+      target.shakeX = 0; target.shakeY = 0
+      if (!this.currentEarth) {
+        const windActive = this.currentMasterTechnique === 'wind' && this.questionNumber <= 3
+        const windX = windActive ? Math.sin(this.questionElapsed * .012 + target.effectPhase) * 72 : 0
+        const windY = windActive ? Math.cos(this.questionElapsed * .009 + target.effectPhase) * 46 : 0
+        target.container.x += (target.vx + windX) * speedScale * frameDelta / 1000
+        target.container.y += (target.vy + windY) * speedScale * frameDelta / 1000
+      }
+      if (this.currentMasterTechnique === 'earth' && this.questionNumber <= 3) {
+        target.shakeX = Math.sin(this.questionElapsed * .05 + target.effectPhase) * 5
+        target.shakeY = Math.cos(this.questionElapsed * .043 + target.effectPhase) * 3
+        target.container.x += target.shakeX; target.container.y += target.shakeY
+      }
+      if (target.effect) {
+        const pulse = .62 + Math.sin(this.questionElapsed * .01 + target.effectPhase) * .22
+        target.effect.setAlpha(pulse)
+        target.effect.setScale(1 + Math.sin(this.questionElapsed * .008 + target.effectPhase) * .035)
+      }
+      if (this.currentMasterTechnique === 'void' && this.questionNumber <= 3) target.label.setAlpha(this.questionElapsed >= 2000 ? 0 : 1)
       target.container.rotation = Phaser.Math.Clamp(target.container.rotation + target.vx * 0.00000025 * frameDelta, -0.052, 0.052)
       if (target.container.x < -180 || target.container.x > width + 180 || target.container.y > height + 100) {
         if (target.correct && !target.resolved) this.resolveMiss()
@@ -262,8 +302,15 @@ export class GameScene extends Phaser.Scene {
     this.questionMode = chooseMode(this.current, this.learningProfile)
     this.questionStartedAt = this.time.now
     this.questionElapsed = 0
+    this.questionNumber++
+    this.currentEarth = this.earthTurns > 0
+    this.currentWater = this.waterTurns > 0
+    if (this.earthTurns > 0) this.earthTurns--
+    if (this.waterTurns > 0) this.waterTurns--
     this.clearTargets()
     this.spawnTargets(makeAnswers(this.current, this.wordPool, this.questionMode))
+    if (this.fireTurns > 0) { this.burnWrongTarget(); this.fireTurns-- }
+    if (this.currentEarth) this.arrangeTargets()
     this.emitHud()
   }
 
@@ -286,12 +333,15 @@ export class GameScene extends Phaser.Scene {
       const label = this.add.text(0, 0, answer, {
         fontFamily: 'Inter, system-ui, sans-serif', fontSize: `${fontSize}px`, color: '#202322',
       }).setOrigin(0.5)
-      const container = this.add.container(x, y, [background, label]).setSize(cardWidth, cardHeight).setDepth(10)
+      const children: Phaser.GameObjects.GameObject[] = [background, label]
+      const effect = this.createMasterEffect(cardWidth, cardHeight)
+      if (effect) children.push(effect)
+      const container = this.add.container(x, y, children).setSize(cardWidth, cardHeight).setDepth(10)
       container.rotation = Phaser.Math.FloatBetween(-0.035, 0.035)
       const duration = Phaser.Math.Between(6500, 8200)
       const vx = (fromLeft ? 1 : -1) * (w + cardWidth * 2) / (duration / 1000)
       const vy = Phaser.Math.Between(-10, 14)
-      this.targets.push({ container, meaning: answer, correct: answer === answerFor(this.current, this.questionMode), vx, vy, resolved: false, width: cardWidth, height: cardHeight, fontSize })
+      this.targets.push({ container, meaning: answer, correct: answer === answerFor(this.current, this.questionMode), vx, vy, resolved: false, width: cardWidth, height: cardHeight, fontSize, label, effect, effectPhase: index * 1.9 + Math.random(), shakeX: 0, shakeY: 0 })
     })
   }
 
@@ -417,7 +467,6 @@ export class GameScene extends Phaser.Scene {
     // A presentation-layer failure must not be able to freeze the battle.
     this.scheduleQuestionAdvance(460, () => this.runMode === 'chapter' && this.resolve <= 0 ? this.completeRound() : this.nextQuestion())
     if (this.runMode === 'chapter' && this.masterEncounter) this.updateBattlePhase()
-    if (this.masterEncounter && this.opponentId === 'iwao-jubei' && !this.stillMindUsed && this.combo >= 5) this.activateStillMind()
     this.recordOutcome(true)
     this.emitHud()
     this.feedback('correct', 'CORRECT')
@@ -650,6 +699,103 @@ export class GameScene extends Phaser.Scene {
     gameEvents.emit('feedback', { type, message })
   }
 
+  private crestForOpponent(): CrestId | null {
+    if (this.opponentId === 'iwao-jubei') return 'wind'
+    if (this.opponentId === 'lady-shizuru') return 'fire'
+    if (this.opponentId === 'genzo-masatsugu') return 'earth'
+    if (this.opponentId === 'akane-tomoe') return 'water'
+    if (this.opponentId === 'takamine-harunobu') return 'void'
+    return null
+  }
+
+  private announceMasterTechnique(crest: CrestId) {
+    const copy: Record<CrestId, { title: string; message: string }> = {
+      wind: { title: '乱風の陣 · CHAOTIC WIND', message: 'Jūbei scatters the next three formations.' },
+      fire: { title: '狐火の帳 · FOXFIRE VEIL', message: 'Shizuru veils the next three choices in flame.' },
+      earth: { title: '地鳴りの構え · EARTHSHAKING STANCE', message: 'Genzou shakes the next three formations.' },
+      water: { title: '水紋の乱 · DISTORTING RIPPLES', message: 'Akane covers the next three choices in rippling water.' },
+      void: { title: '空相の試練 · EMPTY FORM', message: 'Remember well. The next three choices vanish after two seconds.' },
+    }
+    gameEvents.emit('battle', { type: 'ability', ...copy[crest] })
+  }
+
+  private createMasterEffect(width: number, height: number) {
+    if (!this.currentMasterTechnique || this.questionNumber > 3) return undefined
+    if (this.currentMasterTechnique !== 'fire' && this.currentMasterTechnique !== 'water') return undefined
+    const effect = this.add.graphics().setDepth(3)
+    if (this.currentMasterTechnique === 'fire') {
+      effect.fillStyle(0xff6a20, .22)
+      for (let x = -width / 2 + 14; x < width / 2; x += 25) {
+        effect.fillTriangle(x - 8, height / 2 - 3, x + 8, height / 2 - 3, x, height / 2 - Phaser.Math.Between(25, 47))
+      }
+      effect.lineStyle(3, 0x7f5cff, .5)
+      effect.strokeRoundedRect(-width / 2 + 4, -height / 2 + 4, width - 8, height - 8, 17)
+    } else {
+      effect.lineStyle(4, 0x56b7d8, .34)
+      effect.strokeEllipse(0, -10, width * .82, 24)
+      effect.lineStyle(3, 0xb7ebf3, .45)
+      effect.strokeEllipse(0, 10, width * .62, 18)
+      effect.fillStyle(0x4ba8c7, .09)
+      effect.fillRoundedRect(-width / 2 + 3, -height / 2 + 3, width - 6, height - 6, 18)
+    }
+    return effect
+  }
+
+  private activateCrest(crest: CrestId) {
+    if (this.finished || this.questionAdvanceQueued || this.crestCharges <= 0 || !this.availableCrests.includes(crest) || this.usedCrests.includes(crest)) return
+    this.crestCharges--
+    this.usedCrests.push(crest)
+    const copy: Record<CrestId, string> = {
+      wind: 'One false answer is carried away.',
+      fire: 'A false answer burns away for two questions.',
+      earth: 'The choices stand still for two questions.',
+      water: 'The current slows for three questions.',
+      void: 'False forms fade from sight.',
+    }
+    gameEvents.emit('battle', { type: 'ability', title: `${CRESTS[crest].kanji} · ${CRESTS[crest].technique.toUpperCase()}`, message: copy[crest] })
+    haptic([12, 22, 16])
+    if (crest === 'wind') this.blowAwayWrongTarget()
+    if (crest === 'fire') { this.fireTurns = 1; this.burnWrongTarget() }
+    if (crest === 'earth') { this.earthTurns = 1; this.currentEarth = true; this.arrangeTargets() }
+    if (crest === 'water') { this.waterTurns = 2; this.currentWater = true }
+    if (crest === 'void') this.fadeWrongTargets()
+    this.emitHud()
+  }
+
+  private randomWrongTarget() {
+    return Phaser.Utils.Array.GetRandom(this.targets.filter((target) => !target.correct && !target.resolved)) as Target | undefined
+  }
+
+  private blowAwayWrongTarget() {
+    const target = this.randomWrongTarget()
+    if (!target) return
+    const direction = target.container.x < this.scale.width / 2 ? -1 : 1
+    this.targets = this.targets.filter((item) => item !== target)
+    this.tweens.add({ targets: target.container, x: target.container.x + direction * 260, y: target.container.y - 80, rotation: direction * .35, alpha: 0, duration: 430, ease: 'Cubic.easeIn', onComplete: () => target.container.destroy() })
+  }
+
+  private burnWrongTarget() {
+    const target = this.randomWrongTarget()
+    if (!target) return
+    this.targets = this.targets.filter((item) => item !== target)
+    const flame = this.add.graphics().setDepth(45).setPosition(target.container.x, target.container.y)
+    flame.fillStyle(0xf05a32, .85); flame.fillTriangle(-35, 30, -5, -34, 12, 30); flame.fillStyle(0xf6b73c, .9); flame.fillTriangle(-8, 30, 18, -22, 34, 30)
+    this.tweens.add({ targets: [target.container, flame], scale: .72, alpha: 0, y: target.container.y - 24, duration: 520, ease: 'Quad.easeIn', onComplete: () => { target.container.destroy(); flame.destroy() } })
+  }
+
+  private arrangeTargets() {
+    const spacing = Math.min(92, this.scale.height * .16)
+    const centerY = this.scale.height * .52
+    this.targets.forEach((target, index) => {
+      target.vx = 0; target.vy = 0; target.container.setRotation(0)
+      this.tweens.add({ targets: target.container, x: this.scale.width / 2, y: centerY + (index - 1) * spacing, duration: 300, ease: 'Quad.easeOut' })
+    })
+  }
+
+  private fadeWrongTargets() {
+    this.targets.filter((target) => !target.correct).forEach((target) => this.tweens.add({ targets: target.container, alpha: .24, duration: 260 }))
+  }
+
   private updateBattlePhase() {
     const ratio = this.resolve / Math.max(1, this.maxResolve)
     const nextPhase: 1 | 2 | 3 = ratio > .66 ? 1 : ratio > .33 ? 2 : 3
@@ -661,8 +807,8 @@ export class GameScene extends Phaser.Scene {
         : { title: 'JŪBEI · FINAL STANCE', message: 'No wasted motion now. Keep your mind still.' }
       : this.opponentId === 'akane-tomoe'
         ? nextPhase === 2
-          ? { title: 'AKANE · GALE STANCE', message: 'The pass howls. Keep moving through the fear.' }
-          : { title: 'AKANE · CRIMSON STANCE', message: 'One final choice. Protect what you refuse to lose.' }
+          ? { title: 'AKANE · RIPPLE STANCE', message: 'The surface shifts. Read through the uncertainty.' }
+          : { title: 'AKANE · DEEP CURRENT', message: 'One final choice. Do not let the current move your heart.' }
         : this.opponentId === 'takamine-harunobu'
           ? nextPhase === 2
             ? { title: 'HARUNOBU · VEILED STANCE', message: 'The obvious opening is a question, not an invitation.' }
@@ -680,17 +826,10 @@ export class GameScene extends Phaser.Scene {
     gameEvents.emit('battle', { type: 'phase', phase: nextPhase, ...phaseCopy })
   }
 
-  private activateStillMind() {
-    this.stillMindUsed = true
-    this.stillMindMs = 1900
-    gameEvents.emit('battle', { type: 'ability', title: 'STILL MIND · 静心', message: 'Discipline slows the field.' })
-    haptic([12, 28, 12])
-  }
-
   private emitHud() {
     const prompt = this.questionMode === 'meaning-japanese' ? this.current.meaning : this.questionMode === 'reading-meaning' ? this.current.reading : this.current.japanese
     const promptLabel = this.questionMode === 'meaning-japanese' ? 'Slash the Japanese for' : this.questionMode === 'reading-meaning' ? 'Slash the meaning of this reading' : 'Slash the meaning of'
-    gameEvents.emit('hud', { score: this.score, lives: this.lives, combo: this.combo, secondsLeft: this.secondsLeft, current: this.current, prompt, promptLabel, promptReading: this.questionMode === 'japanese-meaning' ? this.current.reading : undefined, mode: this.questionMode, focus: this.lives, maxFocus: this.maxFocus, resolve: this.resolve, maxResolve: this.maxResolve, battlePhase: this.battlePhase })
+    gameEvents.emit('hud', { score: this.score, lives: this.lives, combo: this.combo, secondsLeft: this.secondsLeft, current: this.current, prompt, promptLabel, promptReading: this.questionMode === 'japanese-meaning' ? this.current.reading : undefined, mode: this.questionMode, focus: this.lives, maxFocus: this.maxFocus, resolve: this.resolve, maxResolve: this.maxResolve, battlePhase: this.battlePhase, crestCharges: this.crestCharges, availableCrests: this.availableCrests, usedCrests: this.usedCrests })
   }
 
   private completeRound() {
