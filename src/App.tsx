@@ -16,8 +16,10 @@ const initialHud: HudState = { score: 0, lives: STARTING_LIVES, combo: 0, second
 const mascotAnimation = `${import.meta.env.BASE_URL}assets/mascot/ronin-pixel-single-sword-v11-strip.png`
 const MASCOT_FRAME_COUNT = 20
 const companionAnimation = `${import.meta.env.BASE_URL}assets/mascot/companion-pixel-pouch-v4-strip.png`
-const companionGoofyAnimation = `${import.meta.env.BASE_URL}assets/mascot/companion-goofy-downtime-v9-strip.png`
+const companionGoofyAnimation = `${import.meta.env.BASE_URL}assets/mascot/companion-goofy-downtime-v10-strip.png`
+const companionReactionAnimation = `${import.meta.env.BASE_URL}assets/mascot/companion-reactions-v1-strip.png`
 const COMPANION_FRAME_COUNT = 20
+const COMPANION_REACTION_FRAME_COUNT = 32
 const MASCOT_SLASH_RESET_MS = 440
 const renDialogueArtwork = `${import.meta.env.BASE_URL}assets/characters/ren-dialogue-art-v1.webp`
 const hanaDialogueArtwork = `${import.meta.env.BASE_URL}assets/characters/hana-dialogue-pouch-art-v2.webp`
@@ -133,8 +135,9 @@ function PixelPortrait({ pose = 0, className = '' }: { pose?: number; className?
 }
 
 function CompanionPortrait({ frame = 0, className = '', animation = companionAnimation }: { frame?: number; className?: string; animation?: string }) {
-  const safeFrame = Math.min(COMPANION_FRAME_COUNT - 1, Math.max(0, frame))
-  return <div className={`companion-portrait ${className}`} aria-hidden="true"><div style={{ backgroundImage: `url(${animation})`, backgroundPosition: `${(safeFrame / (COMPANION_FRAME_COUNT - 1)) * 100}% center` }} /></div>
+  const frameCount = animation === companionReactionAnimation ? COMPANION_REACTION_FRAME_COUNT : COMPANION_FRAME_COUNT
+  const safeFrame = Math.min(frameCount - 1, Math.max(0, frame))
+  return <div className={`companion-portrait ${className}`} aria-hidden="true"><div style={{ backgroundImage: `url(${animation})`, backgroundSize: `${frameCount * 100}% 100%`, backgroundPosition: `${(safeFrame / (frameCount - 1)) * 100}% center` }} /></div>
 }
 
 type CompanionReactionKind = 'idle' | 'cheer' | 'clumsy' | 'incorrect' | 'missed'
@@ -187,9 +190,11 @@ function CompanionMascot({ reaction }: { reaction: CompanionReaction }) {
     const scheduleGoofyMoment = () => {
       goofyTimer = window.setTimeout(() => {
         if (timer !== null) window.clearInterval(timer)
-        const activityStart = Math.floor(Math.random() * 5) * 4
+        const activity = Math.floor(Math.random() * 13)
+        const activityAnimation = activity < 5 ? companionGoofyAnimation : companionReactionAnimation
+        const activityStart = (activity < 5 ? activity : activity - 5) * 4
         let activityFrame = 0
-        setAnimation(companionGoofyAnimation)
+        setAnimation(activityAnimation)
         setFrame(activityStart)
         timer = window.setInterval(() => {
           activityFrame += 1
@@ -219,7 +224,7 @@ function CompanionMascot({ reaction }: { reaction: CompanionReaction }) {
       if (returnTimer !== null) window.clearTimeout(returnTimer)
     }
   }, [reaction.cue, reaction.kind])
-  return <CompanionPortrait className={`companion-mascot companion-mascot--${reaction.kind} ${animation === companionGoofyAnimation ? 'companion-mascot--goofy' : ''}`} frame={frame} animation={animation} />
+  return <CompanionPortrait className={`companion-mascot companion-mascot--${reaction.kind} ${animation !== companionAnimation ? 'companion-mascot--goofy' : ''}`} frame={frame} animation={animation} />
 }
 
 function Mascot({ state, dx = 0, dy = 0 }: { state: 'idle' | 'track' | 'slash'; dx?: number; dy?: number }) {
